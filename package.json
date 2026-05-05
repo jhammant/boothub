@@ -8,10 +8,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "wrangler pages dev site --compatibility-flag=nodejs_compat",
+    "dev:lambda": "tsx lambda/dev-server.ts",
     "validate": "tsx tools/validate.ts",
     "render": "tsx tools/render.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cdk": "cd infra && cdk"
   },
   "dependencies": {
     "gray-matter": "^4.0.3",
@@ -19,11 +20,14 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20251101.0",
+    "@types/aws-lambda": "^8.10.150",
     "@types/node": "^22.10.0",
+    "aws-cdk": "^2.176.0",
+    "aws-cdk-lib": "^2.176.0",
+    "constructs": "^10.4.2",
+    "esbuild": "^0.24.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
-    "wrangler": "^3.91.0"
+    "vitest": "^2.1.8"
   }
 }

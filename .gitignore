@@ -1,9 +1,11 @@
 node_modules/
-.wrangler/
-.dev.vars
 dist/
 coverage/
 .DS_Store
 *.log
 .env
 .env.local
+
+# CDK
+infra/cdk.out/
+infra/.cdk.staging/

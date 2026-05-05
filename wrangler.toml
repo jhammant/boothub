@@ -1,4 +1,0 @@
-name = "boothub"
-compatibility_date = "2025-11-01"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = "site"
