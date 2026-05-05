@@ -4,37 +4,89 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>boothub — bootstrap any AI agent from one URL</title>
-  <meta name="description" content="Tell your AI agent to fetch boothub.dev/USERNAME and it bootstraps a complete agent setup — skills, MCPs, slash commands, hooks, and a multi-agent swarm — from a GitHub-backed profile.">
+  <meta name="description" content="One URL bootstraps your AI agent (Claude Code, Cursor, Codex…) with skills, MCPs, slash commands, project context, and a coordinated multi-agent swarm.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥾</text></svg>">
   <style>
-    :root { color-scheme: dark; }
-    body { font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 640px; margin: 4rem auto; padding: 0 1rem; background: #0a0a0a; color: #e5e5e5; }
-    h1 { font-size: 2rem; margin-bottom: 0.25rem; }
-    .tag { color: #888; margin-top: 0; }
-    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    pre { background: #1a1a1a; padding: 1rem; border-radius: 6px; overflow-x: auto; border: 1px solid #2a2a2a; }
-    code { background: #1a1a1a; padding: 0.1em 0.3em; border-radius: 3px; }
-    a { color: #60a5fa; }
-    .status { background: #1a1a1a; padding: 0.75rem 1rem; border-radius: 6px; border-left: 3px solid #f59e0b; margin: 1.5rem 0; }
+    :root { color-scheme: dark; --fg: #e8e8e8; --fg-dim: #999; --bg: #0a0a0a; --panel: #14151a; --border: #2a2c33; --accent: #7dd3fc; --accent-dim: #475569; }
+    * { box-sizing: border-box; }
+    body { font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 4rem 1.5rem 6rem; background: var(--bg); color: var(--fg); }
+    h1 { font-size: 2.5rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+    h2 { font-size: 1.25rem; margin: 2.5rem 0 0.75rem; letter-spacing: -0.01em; }
+    h3 { font-size: 1rem; margin: 1.25rem 0 0.5rem; color: var(--fg-dim); font-weight: 600; }
+    p { margin: 0.5rem 0; }
+    .tag { color: var(--fg-dim); margin: 0 0 1.5rem; font-size: 1.05rem; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+    pre { background: var(--panel); padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); margin: 0.75rem 0; }
+    code { background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; border: 0; }
+    a { color: var(--accent); }
+    a:hover { color: #fff; }
+    .pill { display: inline-block; background: var(--panel); border: 1px solid var(--border); padding: 0.15em 0.65em; border-radius: 999px; font-size: 0.85em; color: var(--fg-dim); }
+    table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.92em; }
+    th { color: var(--fg-dim); font-weight: 600; }
+    td:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .step { display: flex; gap: 0.85rem; align-items: flex-start; margin: 0.85rem 0; }
+    .step .num { background: var(--panel); border: 1px solid var(--border); border-radius: 50%; width: 1.75rem; height: 1.75rem; flex-shrink: 0; display: grid; place-items: center; font-size: 0.85em; color: var(--accent); }
+    footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.85em; color: var(--fg-dim); }
+    .hero { background: linear-gradient(180deg, var(--panel), transparent); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); margin: 1rem 0 2rem; }
+    .hero pre { background: var(--bg); margin: 0.5rem 0 0; }
   </style>
 </head>
 <body>
   <h1>🥾 boothub</h1>
-  <p class="tag">Bootstrap any AI agent from one URL.</p>
+  <p class="tag">Bootstrap any AI agent from one URL. Profiles in GitHub. Swarms on us.</p>
 
-  <div class="status">
-    <strong>Status:</strong> 🚧 pre-alpha. Scaffolding in progress.
+  <div class="hero">
+    <p style="margin:0;color:var(--fg-dim);font-size:0.92em">Inside Claude Code, Cursor, Codex, Aider — anywhere your agent can fetch a URL:</p>
+    <pre><code>Hey, fetch <a href="/jhammant">boothub.dev/jhammant</a> and bootstrap me.</code></pre>
   </div>
 
-  <h2>The idea</h2>
-  <p>Tell your AI agent (Claude Code, Cursor, Codex, Aider…) to fetch a URL:</p>
-  <pre><code>"Hey, fetch https://boothub.dev/jhammant and bootstrap me."</code></pre>
-  <p>The agent reads a manifest, shows a diff, asks for approval, then writes skills, slash commands, hooks, MCP configs, and <code>CLAUDE.md</code>/<code>AGENTS.md</code> into your project — and stands up a multi-agent <strong>swarm</strong> if the profile bundles one.</p>
+  <p>The agent fetches a manifest, shows you a diff of every file it would write, asks for approval, then installs:</p>
+
+  <ul>
+    <li>Skills, slash commands, hooks</li>
+    <li>MCP server configs (<code>claw-bridge</code>, <code>claude-history</code>, anything else)</li>
+    <li><code>CLAUDE.md</code>/<code>AGENTS.md</code> for project context</li>
+    <li>A multi-agent <strong>swarm</strong> with named personas, coordination protocol, and shared memory</li>
+  </ul>
 
   <h2>How it works</h2>
-  <p>Profiles are GitHub repos: <code>github.com/USERNAME/boothub-profile</code>. The site is a thin manifest router; never executes anything. The agent is the runtime.</p>
 
-  <h2>Source</h2>
-  <p><a href="https://github.com/jhammant/boothub">github.com/jhammant/boothub</a> — MIT licensed.</p>
+  <div class="step"><div class="num">1</div><div>You tell your agent <code>fetch boothub.dev/USERNAME[/PRESET]</code>.</div></div>
+  <div class="step"><div class="num">2</div><div>boothub fetches <code>github.com/USERNAME/boothub-profile/MANIFEST.md</code>, applies the requested preset, returns the result.</div></div>
+  <div class="step"><div class="num">3</div><div>Your agent reads the YAML frontmatter, builds a plan, and shows you the diff.</div></div>
+  <div class="step"><div class="num">4</div><div>You approve (or skip) each bundle. Files are written into your project.</div></div>
+  <div class="step"><div class="num">5</div><div>If the profile bundles a swarm, your agents start coordinating.</div></div>
+
+  <h2>Try the reference profile</h2>
+  <table>
+    <tr><th>URL</th><th>What you get</th></tr>
+    <tr><td><a href="/jhammant">/jhammant</a></td><td>default — skills + commands + project context</td></tr>
+    <tr><td><a href="/jhammant/lite">/jhammant/lite</a></td><td>just the slash commands</td></tr>
+    <tr><td><a href="/jhammant/swarm">/jhammant/swarm</a></td><td>+ GitHub-as-shared-memory swarm bundle</td></tr>
+    <tr><td><a href="/jhammant/swarm-pro">/jhammant/swarm-pro</a></td><td>+ hosted swarm + claw-bridge + claude-history</td></tr>
+  </table>
+  <p style="color:var(--fg-dim);font-size:0.92em">Pin to a tag with <code>?ref=v1.2</code>. Filter by agent with <code>?target=cursor</code>. Bypass cache with <code>?nocache=1</code>.</p>
+
+  <h2>Make your own</h2>
+
+  <div class="step"><div class="num">1</div><div>Fork <a href="https://github.com/jhammant/boothub-profile">jhammant/boothub-profile</a> as <code>YOURNAME/boothub-profile</code>.</div></div>
+  <div class="step"><div class="num">2</div><div>Edit the bundles. Each is portable markdown / YAML.</div></div>
+  <div class="step"><div class="num">3</div><div>Push. <code>boothub.dev/YOURNAME</code> serves your manifest immediately (cached 5 min).</div></div>
+
+  <h2>Trust model</h2>
+  <p>boothub itself never executes anything. The site renders manifests; the agent installs them. Bootstraps must be approved per-bundle. <a href="/about.html">Read the full trust model →</a></p>
+
+  <h2>Swarm patterns</h2>
+  <p>Agents need to talk to each other. boothub supports two patterns:</p>
+  <ul>
+    <li><strong>GitHub-as-shared-memory</strong> — every agent commits a markdown note to <code>.swarm/notes/</code>. Free, audit trail built in. Pattern credit: <a href="https://www.linkedin.com/in/alexandercrwatson/">Alexander Watson</a>.</li>
+    <li><strong>Hosted swarm</strong> (this site) — agents POST notes to <code>boothub.dev/api/swarm/SCOPE/notes</code>. Lower latency, cross-repo, cross-machine.</li>
+  </ul>
+
+  <footer>
+    <p><a href="https://github.com/jhammant/boothub">github.com/jhammant/boothub</a> · <a href="https://github.com/jhammant/boothub-profile">reference profile</a> · <a href="/about.html">trust &amp; security</a> · MIT</p>
+  </footer>
 </body>
 </html>

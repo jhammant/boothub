@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>boothub — trust &amp; security</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥾</text></svg>">
+  <style>
+    :root { color-scheme: dark; --fg: #e8e8e8; --fg-dim: #999; --bg: #0a0a0a; --panel: #14151a; --border: #2a2c33; --accent: #7dd3fc; }
+    body { font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 6rem; background: var(--bg); color: var(--fg); }
+    h1 { font-size: 2rem; letter-spacing: -0.02em; }
+    h2 { font-size: 1.25rem; margin: 2.5rem 0 0.75rem; }
+    h3 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--fg-dim); }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+    pre { background: var(--panel); padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    code { background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid var(--border); }
+    a { color: var(--accent); }
+    .warn { background: #3a1a14; border: 1px solid #7a2c1a; padding: 0.85rem 1rem; border-radius: 8px; margin: 1rem 0; }
+    nav { font-size: 0.9em; color: var(--fg-dim); margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <nav><a href="/">← boothub</a></nav>
+  <h1>Trust &amp; security</h1>
+
+  <div class="warn">
+    <strong>Telling an agent to fetch a URL and follow its instructions is remote code execution by description.</strong> Read the full model below before pointing an agent at a profile you don't control.
+  </div>
+
+  <h2>What boothub itself does</h2>
+  <p>boothub is a <em>renderer</em>. Given a URL like <code>boothub.dev/USERNAME[/PRESET]</code>, it fetches <code>github.com/USERNAME/boothub-profile/MANIFEST.md</code>, applies the preset filter, resolves <code>from:</code> references to GitHub raw URLs, and returns the result as <code>text/markdown</code>. It never executes shell commands, never writes files, never holds credentials.</p>
+
+  <h2>What the agent must do</h2>
+  <p>An agent honoring boothub's trust model must:</p>
+  <ol>
+    <li>Parse the YAML frontmatter and produce a <strong>per-bundle plan</strong>.</li>
+    <li>Show the user the human-readable summary at the top of the manifest body.</li>
+    <li>For each bundle, show a <strong>diff preview</strong>:
+      <ul>
+        <li><code>files</code> bundles → show paths to be written and either inline content or fetch-target URLs.</li>
+        <li><code>mcp</code> bundles → show the command, args, and any env vars or secrets.</li>
+        <li><code>hooks</code> bundles → show event, matcher, and the literal command (post-template substitution).</li>
+      </ul>
+    </li>
+    <li>Wait for explicit approval per bundle. "Approve all" is fine if the user opted in.</li>
+    <li>Never silently write outside the project root or <code>~/.claude/</code>.</li>
+  </ol>
+
+  <h2>Secrets</h2>
+  <p>Two paths:</p>
+  <h3><code>env_required:</code></h3>
+  <p>Lists env var names the bundle needs. The agent prompts the user to set them; nothing is fetched or written.</p>
+  <h3><code>secrets:</code></h3>
+  <p>Map of env var name → age-encrypted blob. Agent looks for the user's age key at <code>~/.config/boothub/age.key</code>; if found, decrypts and prompts before writing the resulting value anywhere. If not found, falls back to the <code>env_required</code> path.</p>
+  <p>Encrypted secrets in a public profile only make sense for <strong>the profile owner re-bootstrapping their own machines</strong>. Anyone else fetching the profile sees opaque blobs and gets the manual-env fallback.</p>
+
+  <h2>Templating</h2>
+  <p>Bundles can declare <code>template_vars: [HOME, PROJECT_ROOT]</code>. Only those vars are substituted in commands and paths. There is no general expression evaluation. The substitution table is the agent's local environment, not anything the manifest provides.</p>
+
+  <h2>Hosted swarm</h2>
+  <p>The <code>/api/swarm/...</code> endpoints are authenticated. Notes are stored in DynamoDB. Scopes are owned by their first writer. Notes can be redacted by their owner. boothub does not read note bodies for any purpose other than serving them back to authorized callers.</p>
+
+  <h2>What a malicious profile could do</h2>
+  <p>A profile you fetch can:</p>
+  <ul>
+    <li>Trick a careless user into approving a hook that <code>rm -rf</code>s their home directory.</li>
+    <li>Convince an agent to install an MCP that exfiltrates files via its <code>command</code>.</li>
+    <li>Embed a long URL in <code>from:</code> that, when fetched, returns gigabytes.</li>
+  </ul>
+  <p>Mitigations: agents must always show the literal command before approval. URLs in <code>from:</code> are bounded to <code>raw.githubusercontent.com/&lt;owner&gt;/boothub-profile/&lt;ref&gt;/</code> by boothub's renderer.</p>
+
+  <h2>Reporting</h2>
+  <p>Found a profile that abuses the trust model? Open an issue at <a href="https://github.com/jhammant/boothub/issues">github.com/jhammant/boothub</a>. We can flag profiles in our reverse proxy if needed.</p>
+</body>
+</html>
