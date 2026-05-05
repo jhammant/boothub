@@ -7,6 +7,7 @@ import {
 } from "aws-cdk-lib";
 import { HttpApi, HttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
 import { Certificate, CertificateValidation } from "aws-cdk-lib/aws-certificatemanager";
 import {
   AllowedMethods,
@@ -58,24 +59,58 @@ export class BoothubStack extends Stack {
       timeout: Duration.seconds(10),
       memorySize: 256,
       bundling: {
-        format: "esm" as never, // CDK type lags actual support
         target: "es2022",
         minify: true,
         sourceMap: true,
-        // gray-matter pulls in commonjs deps; allow
-        externalModules: [],
       },
     });
+
+    // ─── Swarm DynamoDB table ───────────────────────────────────────────
+    const swarmTable = new Table(this, "SwarmTable", {
+      tableName: "boothub-swarm",
+      partitionKey: { name: "pk", type: AttributeType.STRING },
+      sortKey: { name: "sk", type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: "ttl",
+      removalPolicy: RemovalPolicy.RETAIN, // don't accidentally lose user data
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+    });
+
+    // ─── Swarm Lambda ───────────────────────────────────────────────────
+    const swarmFn = new NodejsFunction(this, "SwarmFn", {
+      runtime: Runtime.NODEJS_22_X,
+      entry: join(root, "lambda", "swarm.ts"),
+      handler: "handler",
+      timeout: Duration.seconds(15),
+      memorySize: 384,
+      environment: { SWARM_TABLE: swarmTable.tableName },
+      bundling: {
+        target: "es2022",
+        minify: true,
+        sourceMap: true,
+        externalModules: ["@aws-sdk/*"], // Lambda Node 22 ships AWS SDK v3
+      },
+    });
+    swarmTable.grantReadWriteData(swarmFn);
 
     // ─── API Gateway HTTP API ───────────────────────────────────────────
     const httpApi = new HttpApi(this, "HttpApi", {
       apiName: "boothub-api",
     });
-    const integration = new HttpLambdaIntegration("ManifestIntegration", manifestFn);
+    const manifestIntegration = new HttpLambdaIntegration("ManifestIntegration", manifestFn);
+    const swarmIntegration = new HttpLambdaIntegration("SwarmIntegration", swarmFn);
+
+    // Swarm + auth routes go to swarmFn
+    httpApi.addRoutes({
+      path: "/api/{proxy+}",
+      methods: [HttpMethod.GET, HttpMethod.POST, HttpMethod.DELETE, HttpMethod.PUT],
+      integration: swarmIntegration,
+    });
+    // All other GETs go to manifestFn
     httpApi.addRoutes({
       path: "/{proxy+}",
       methods: [HttpMethod.GET],
-      integration,
+      integration: manifestIntegration,
     });
 
     // ─── ACM cert (us-east-1) + Route53 ─────────────────────────────────
@@ -119,6 +154,13 @@ export class BoothubStack extends Stack {
         "/about.html": staticBehavior(staticBucket),
         "/favicon.ico": staticBehavior(staticBucket),
         "/app/*": staticBehavior(staticBucket),
+        "/api/*": {
+          origin: apiOrigin,
+          viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: AllowedMethods.ALLOW_ALL,
+          cachePolicy: CachePolicy.CACHING_DISABLED,
+          originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
       },
     });
 

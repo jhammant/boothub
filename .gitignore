@@ -9,3 +9,4 @@ coverage/
 # CDK
 infra/cdk.out/
 infra/.cdk.staging/
+infra/cdk-outputs.json

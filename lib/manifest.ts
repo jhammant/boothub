@@ -1,10 +1,25 @@
-import matter from "gray-matter";
-import { stringify as yamlStringify } from "yaml";
+import { parse as yamlParse, stringify as yamlStringify } from "yaml";
 import { type Bundle, type Manifest, type Target, zManifest } from "./schema.ts";
 
 export interface ParsedManifest {
   manifest: Manifest;
   body: string;
+}
+
+function parseFrontmatter(text: string): { data: unknown; content: string } {
+  // Match "---\n<yaml>\n---\n<body>" with optional trailing newline before body.
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) {
+    throw new ManifestError("missing YAML frontmatter — must start with '---' and close with '---'");
+  }
+  const [, yaml, body] = match;
+  let data: unknown;
+  try {
+    data = yamlParse(yaml ?? "");
+  } catch (e) {
+    throw new ManifestError(`failed to parse YAML frontmatter: ${(e as Error).message}`);
+  }
+  return { data, content: (body ?? "").replace(/^\n/, "") };
 }
 
 export interface RenderOptions {
@@ -26,12 +41,7 @@ export class ManifestError extends Error {
 }
 
 export function parseManifest(text: string): ParsedManifest {
-  let parsed: matter.GrayMatterFile<string>;
-  try {
-    parsed = matter(text);
-  } catch (e) {
-    throw new ManifestError(`failed to parse YAML frontmatter: ${(e as Error).message}`);
-  }
+  const parsed = parseFrontmatter(text);
   const result = zManifest.safeParse(parsed.data);
   if (!result.success) {
     const first = result.error.issues[0];
