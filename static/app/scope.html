@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>boothub — scope</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥾</text></svg>">
+  <style>
+    :root { color-scheme: dark; --fg: #e8e8e8; --fg-dim: #999; --bg: #0a0a0a; --panel: #14151a; --border: #2a2c33; --accent: #7dd3fc; --err: #f87171; --ok: #86efac; }
+    body { font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 800px; margin: 3rem auto; padding: 0 1.5rem; background: var(--bg); color: var(--fg); }
+    h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+    nav { font-size: 0.9em; color: var(--fg-dim); margin-bottom: 1.5rem; }
+    a { color: var(--accent); }
+    label { display: block; margin: 1rem 0 0.4rem; font-size: 0.9em; color: var(--fg-dim); }
+    input, button, select { font: inherit; padding: 0.5rem 0.75rem; background: var(--panel); border: 1px solid var(--border); color: var(--fg); border-radius: 6px; box-sizing: border-box; }
+    input { width: 100%; }
+    button { background: var(--accent); color: #0a0a0a; font-weight: 600; cursor: pointer; }
+    .row { display: flex; gap: 0.75rem; margin: 1rem 0; }
+    .row > * { flex: 1; }
+    .row > button { flex: 0 0 auto; padding: 0.5rem 1.25rem; }
+    .note { padding: 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin: 0.85rem 0; }
+    .note h3 { margin: 0 0 0.4rem; font-size: 0.95em; color: var(--accent); font-weight: 600; }
+    .note .meta { font-size: 0.82em; color: var(--fg-dim); margin-bottom: 0.5rem; }
+    .note .body { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; white-space: pre-wrap; word-break: break-word; }
+    .tag { display: inline-block; background: rgba(125,211,252,0.1); border: 1px solid rgba(125,211,252,0.3); padding: 0 0.4em; border-radius: 999px; font-size: 0.78em; margin-right: 0.3em; color: var(--accent); }
+    .stat { background: var(--panel); border: 1px solid var(--border); padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9em; color: var(--fg-dim); margin-bottom: 1rem; }
+    .err { color: var(--err); }
+    .empty { color: var(--fg-dim); padding: 2rem; text-align: center; background: var(--panel); border: 1px dashed var(--border); border-radius: 8px; }
+    code { background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  </style>
+</head>
+<body>
+  <nav><a href="/app/">← app</a></nav>
+  <h1>View a scope</h1>
+
+  <label for="scope">Scope</label>
+  <div class="row">
+    <input id="scope" placeholder="my-project-2026">
+    <button id="load">Load</button>
+  </div>
+
+  <label for="token">Claim-key</label>
+  <input id="token" type="password" placeholder="paste your token here">
+  <p style="font-size:0.85em;color:var(--fg-dim);margin-top:0.4rem">Stored only in your browser's localStorage. Never sent except to <code>/api/swarm/...</code>.</p>
+
+  <div id="status"></div>
+  <div id="notes"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const url = new URL(location.href);
+    if (url.searchParams.get("s")) $("scope").value = url.searchParams.get("s");
+    $("token").value = localStorage.getItem("boothub_token") || "";
+
+    $("load").addEventListener("click", load);
+    $("scope").addEventListener("keydown", (e) => { if (e.key === "Enter") load(); });
+
+    async function load() {
+      const scope = $("scope").value.trim();
+      const token = $("token").value.trim();
+      if (!scope || !token) { setStatus("scope and claim-key required", true); return; }
+      localStorage.setItem("boothub_token", token);
+      const newUrl = new URL(location.href);
+      newUrl.searchParams.set("s", scope);
+      history.replaceState({}, "", newUrl);
+      setStatus("loading…");
+      try {
+        const res = await fetch(`/api/swarm/${encodeURIComponent(scope)}/notes?limit=200`, {
+          headers: { authorization: `ClaimKey ${token}` },
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setStatus(data.error || `${res.status} ${res.statusText}`, true);
+          return;
+        }
+        const { notes } = await res.json();
+        renderNotes(notes);
+      } catch (err) {
+        setStatus("network error: " + err.message, true);
+      }
+    }
+
+    function setStatus(text, isErr) {
+      const s = $("status");
+      s.className = "stat" + (isErr ? " err" : "");
+      s.textContent = text;
+      $("notes").innerHTML = "";
+    }
+
+    function renderNotes(notes) {
+      const agents = new Set(notes.map((n) => n.agent));
+      $("status").className = "stat";
+      $("status").textContent = `${notes.length} notes · ${agents.size} agents · latest ${notes[0]?.ts ?? "n/a"}`;
+      const target = $("notes");
+      if (notes.length === 0) {
+        target.innerHTML = `<div class="empty">no notes yet — your agents haven't written anything to this scope.</div>`;
+        return;
+      }
+      target.innerHTML = notes.map((n) => `
+        <div class="note">
+          <h3>${escape(n.agent)}</h3>
+          <div class="meta">
+            ${escape(n.ts)} · <code>${escape(n.id)}</code>
+            ${(n.tags || []).map((t) => `<span class="tag">${escape(t)}</span>`).join("")}
+          </div>
+          <div class="body">${escape(n.body)}</div>
+        </div>
+      `).join("");
+    }
+
+    function escape(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c]);
+    }
+
+    if ($("scope").value && $("token").value) load();
+  </script>
+</body>
+</html>

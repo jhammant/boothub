@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>boothub — claim key</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥾</text></svg>">
+  <style>
+    :root { color-scheme: dark; --fg: #e8e8e8; --fg-dim: #999; --bg: #0a0a0a; --panel: #14151a; --border: #2a2c33; --accent: #7dd3fc; --err: #f87171; --ok: #86efac; }
+    body { font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1.5rem; background: var(--bg); color: var(--fg); }
+    h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+    nav { font-size: 0.9em; color: var(--fg-dim); margin-bottom: 1.5rem; }
+    a { color: var(--accent); }
+    label { display: block; margin: 1rem 0 0.4rem; font-size: 0.9em; color: var(--fg-dim); }
+    input, button { font: inherit; padding: 0.6rem 0.85rem; background: var(--panel); border: 1px solid var(--border); color: var(--fg); border-radius: 6px; box-sizing: border-box; }
+    input { width: 100%; }
+    input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+    button { background: var(--accent); color: #0a0a0a; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .out { margin-top: 1.5rem; padding: 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; word-break: break-all; }
+    .out.err { border-color: var(--err); color: var(--err); }
+    .out.ok { border-color: var(--ok); }
+    .hint { color: var(--fg-dim); font-size: 0.88em; margin-top: 0.4rem; }
+    code { background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  </style>
+</head>
+<body>
+  <nav><a href="/app/">← app</a></nav>
+  <h1>Get a claim-key</h1>
+  <p>Issue a token that authorises writing to a single scope. Keep it secret.</p>
+
+  <form id="f">
+    <label for="scope">Scope name</label>
+    <input id="scope" name="scope" required pattern="[a-z0-9][a-z0-9._-]{0,127}" placeholder="my-project-2026">
+    <p class="hint">Lowercase letters, numbers, <code>.</code> <code>-</code> <code>_</code>. First writer claims it.</p>
+
+    <label for="ttl">Expires in (days)</label>
+    <input id="ttl" name="ttl" type="number" min="1" max="365" value="30">
+
+    <button type="submit">Issue claim-key</button>
+  </form>
+
+  <div id="out"></div>
+
+  <script>
+    const f = document.getElementById("f");
+    const out = document.getElementById("out");
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      out.className = "";
+      out.textContent = "issuing…";
+      const scope = document.getElementById("scope").value.trim();
+      const days = Number(document.getElementById("ttl").value);
+      try {
+        const res = await fetch("/api/auth/claim-key", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ scope, ttl_seconds: days * 86400 }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          out.className = "out err";
+          out.textContent = data.error || `${res.status} ${res.statusText}`;
+          return;
+        }
+        const expires = new Date(data.expires_at * 1000).toISOString();
+        out.className = "out ok";
+        out.innerHTML =
+          `<strong>Scope:</strong> ${data.scope}<br>` +
+          `<strong>Expires:</strong> ${expires}<br><br>` +
+          `<strong>Token (save this — you won't see it again):</strong><br>` +
+          `<code>${data.key}</code><br><br>` +
+          `<strong>For agents:</strong><br>` +
+          `<code>echo "${data.key}" > ~/.config/boothub/token</code><br><br>` +
+          `<strong>Or via MCP CLI:</strong><br>` +
+          `<code>BOOTHUB_TOKEN="${data.key}" npx @boothub/swarm-mcp</code>`;
+      } catch (err) {
+        out.className = "out err";
+        out.textContent = "network error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
