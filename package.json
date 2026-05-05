@@ -1,0 +1,29 @@
+{
+  "name": "boothub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bootstrap any AI agent from one URL.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "wrangler pages dev site --compatibility-flag=nodejs_compat",
+    "validate": "tsx tools/validate.ts",
+    "render": "tsx tools/render.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "yaml": "^2.6.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251101.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.91.0"
+  }
+}

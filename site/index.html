@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>boothub — bootstrap any AI agent from one URL</title>
+  <meta name="description" content="Tell your AI agent to fetch boothub.dev/USERNAME and it bootstraps a complete agent setup — skills, MCPs, slash commands, hooks, and a multi-agent swarm — from a GitHub-backed profile.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥾</text></svg>">
+  <style>
+    :root { color-scheme: dark; }
+    body { font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 640px; margin: 4rem auto; padding: 0 1rem; background: #0a0a0a; color: #e5e5e5; }
+    h1 { font-size: 2rem; margin-bottom: 0.25rem; }
+    .tag { color: #888; margin-top: 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    pre { background: #1a1a1a; padding: 1rem; border-radius: 6px; overflow-x: auto; border: 1px solid #2a2a2a; }
+    code { background: #1a1a1a; padding: 0.1em 0.3em; border-radius: 3px; }
+    a { color: #60a5fa; }
+    .status { background: #1a1a1a; padding: 0.75rem 1rem; border-radius: 6px; border-left: 3px solid #f59e0b; margin: 1.5rem 0; }
+  </style>
+</head>
+<body>
+  <h1>🥾 boothub</h1>
+  <p class="tag">Bootstrap any AI agent from one URL.</p>
+
+  <div class="status">
+    <strong>Status:</strong> 🚧 pre-alpha. Scaffolding in progress.
+  </div>
+
+  <h2>The idea</h2>
+  <p>Tell your AI agent (Claude Code, Cursor, Codex, Aider…) to fetch a URL:</p>
+  <pre><code>"Hey, fetch https://boothub.dev/jhammant and bootstrap me."</code></pre>
+  <p>The agent reads a manifest, shows a diff, asks for approval, then writes skills, slash commands, hooks, MCP configs, and <code>CLAUDE.md</code>/<code>AGENTS.md</code> into your project — and stands up a multi-agent <strong>swarm</strong> if the profile bundles one.</p>
+
+  <h2>How it works</h2>
+  <p>Profiles are GitHub repos: <code>github.com/USERNAME/boothub-profile</code>. The site is a thin manifest router; never executes anything. The agent is the runtime.</p>
+
+  <h2>Source</h2>
+  <p><a href="https://github.com/jhammant/boothub">github.com/jhammant/boothub</a> — MIT licensed.</p>
+</body>
+</html>
