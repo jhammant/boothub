@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://boothub.dev/schema/manifest.schema.json",
+  "title": "boothub manifest v1",
+  "description": "YAML frontmatter schema for a boothub MANIFEST.md profile.",
+  "type": "object",
+  "required": ["boothub", "profile", "source", "targets", "summary", "presets", "bundles"],
+  "additionalProperties": false,
+  "properties": {
+    "boothub": { "const": 1, "description": "schema version" },
+    "profile": { "type": "string", "minLength": 1 },
+    "generated": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "format": "uri", "pattern": "^https?://github\\.com/" },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/target" }
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "presets": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string" }
+      }
+    },
+    "bundles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bundle" }
+    },
+    "post_install": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "target": { "enum": ["claude-code", "cursor", "codex", "aider", "windsurf", "cline"] },
+    "onlyOn": {
+      "oneOf": [
+        { "$ref": "#/$defs/target" },
+        { "type": "array", "items": { "$ref": "#/$defs/target" } }
+      ]
+    },
+    "fileEntry": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "from": { "type": "string", "minLength": 1 },
+        "content": { "type": "string" }
+      },
+      "anyOf": [{ "required": ["from"] }, { "required": ["content"] }]
+    },
+    "hook": {
+      "type": "object",
+      "required": ["event", "command"],
+      "additionalProperties": false,
+      "properties": {
+        "event": { "type": "string" },
+        "matcher": { "type": "string" },
+        "command": { "type": "string" }
+      }
+    },
+    "bundle": {
+      "oneOf": [
+        { "$ref": "#/$defs/filesBundle" },
+        { "$ref": "#/$defs/mcpBundle" },
+        { "$ref": "#/$defs/hooksBundle" }
+      ]
+    },
+    "filesBundle": {
+      "type": "object",
+      "required": ["id", "kind", "files"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "kind": { "const": "files" },
+        "only-on": { "$ref": "#/$defs/onlyOn" },
+        "post": { "type": "string" },
+        "files": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/fileEntry" } }
+      }
+    },
+    "mcpBundle": {
+      "type": "object",
+      "required": ["id", "kind", "mcp"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "kind": { "const": "mcp" },
+        "only-on": { "$ref": "#/$defs/onlyOn" },
+        "post": { "type": "string" },
+        "mcp": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["config"],
+            "properties": {
+              "scope": { "enum": ["user", "project", "local"] },
+              "file": { "type": "string" },
+              "config": { "type": "object" }
+            }
+          }
+        },
+        "template_vars": { "type": "array", "items": { "type": "string" } },
+        "env_required": { "type": "array", "items": { "type": "string" } },
+        "secrets": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "hooksBundle": {
+      "type": "object",
+      "required": ["id", "kind", "hooks"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "kind": { "const": "hooks" },
+        "only-on": { "$ref": "#/$defs/onlyOn" },
+        "post": { "type": "string" },
+        "hooks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/hook" } },
+        "template_vars": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

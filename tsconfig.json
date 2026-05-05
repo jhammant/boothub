@@ -12,7 +12,8 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["site/**/*", "tools/**/*", "tests/**/*", "schema/**/*.ts"]
+  "include": ["site/**/*", "tools/**/*", "tests/**/*", "lib/**/*", "schema/**/*.ts"]
 }
