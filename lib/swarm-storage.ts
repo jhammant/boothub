@@ -135,19 +135,37 @@ export async function listNotes(input: {
   scope: string;
   limit?: number;
   since?: string;
+  tag?: string;
+  author?: string;
 }): Promise<Note[]> {
   validateScope(input.scope);
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
   const skLow = input.since ? `note#${input.since}` : "note#";
+
+  // Optional server-side filter (Phase 16b)
+  const filterParts: string[] = [];
+  const filterAttrNames: Record<string, string> = {};
+  const filterAttrValues: Record<string, unknown> = {
+    ":pk": `scope#${input.scope}`,
+    ":lo": skLow,
+    ":hi": "note#~",
+  };
+  if (input.tag) {
+    filterParts.push("contains(tags, :tag)");
+    filterAttrValues[":tag"] = input.tag;
+  }
+  if (input.author) {
+    filterParts.push("agent = :author");
+    filterAttrValues[":author"] = input.author;
+  }
+
   const res = await ddb.send(
     new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: "pk = :pk AND sk BETWEEN :lo AND :hi",
-      ExpressionAttributeValues: {
-        ":pk": `scope#${input.scope}`,
-        ":lo": skLow,
-        ":hi": "note#~",
-      },
+      ...(filterParts.length ? { FilterExpression: filterParts.join(" AND ") } : {}),
+      ...(Object.keys(filterAttrNames).length ? { ExpressionAttributeNames: filterAttrNames } : {}),
+      ExpressionAttributeValues: filterAttrValues,
       Limit: limit,
       ScanIndexForward: false, // newest first
     }),

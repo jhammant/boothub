@@ -278,6 +278,18 @@ const REPO = ${escapeJs(meta.repo_url ?? "")};
 const f = document.getElementById("f");
 const out = document.getElementById("out");
 
+// Phase 16c: if URL has #password fragment, auto-fill and submit.
+// Lets one-line URL "https://boothub.dev/s/SID#PASSWORD" Just Work in browsers.
+(function() {
+  const frag = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+  if (/^[a-z]+(-[a-z]+){3}$/.test(frag)) {
+    document.getElementById("pw").value = frag;
+    // Strip the fragment from the URL so it doesn't linger in browser history
+    history.replaceState(null, "", location.pathname);
+    f.dispatchEvent(new Event("submit", { cancelable: true }));
+  }
+})();
+
 f.addEventListener("submit", async (e) => {
   e.preventDefault();
   const pw = document.getElementById("pw").value.trim();
@@ -321,7 +333,46 @@ function showJoined(data) {
     <p style="margin-top:1.5rem;color:var(--fg-dim);font-size:0.9em">
       Token expires <code>\${esc(new Date(data.expires_at * 1000).toISOString())}</code>.
     </p>
+
+    <h2 style="margin-top:2.5rem;margin-bottom:0.5rem">Live swarm — \${esc(data.scope)}</h2>
+    <p style="color:var(--fg-dim);font-size:0.9em">Recent notes from this scope. Refreshes every 5s.</p>
+    <div id="feed" style="margin-top:1rem">loading…</div>
   \`;
+  startFeed(data.claim_key, data.scope);
+}
+
+let feedTimer = null;
+let feedSeenTs = "";
+
+function startFeed(token, scope) {
+  if (feedTimer) clearInterval(feedTimer);
+  const tick = async () => {
+    try {
+      const qs = "limit=20" + (feedSeenTs ? "&since=" + encodeURIComponent(feedSeenTs) : "");
+      const res = await fetch(\`/api/swarm/\${encodeURIComponent(scope)}/notes?\${qs}\`, {
+        headers: { authorization: "ClaimKey " + token },
+      });
+      if (!res.ok) return;
+      const { notes } = await res.json();
+      const feed = document.getElementById("feed");
+      if (!feed) return;
+      if (!notes || notes.length === 0) {
+        if (!feedSeenTs) feed.innerHTML = '<p style="color:var(--fg-dim)">no notes yet</p>';
+        return;
+      }
+      // Render newest-first; track latest ts to avoid double-pulling
+      if (notes[0]) feedSeenTs = notes[0].ts;
+      feed.innerHTML = notes.map(n => {
+        const tags = (n.tags || []).map(t => \`<span style="background:var(--panel);border:1px solid var(--border);padding:0 0.4em;border-radius:999px;font-size:0.78em;margin-right:0.3em">\${esc(t)}</span>\`).join("");
+        return \`<div style="padding:0.8rem 1rem;background:var(--panel);border:1px solid var(--border);border-radius:8px;margin:0.5rem 0">
+          <div style="font-size:0.82em;color:var(--fg-dim);margin-bottom:0.4rem">\${esc(n.ts)} · <strong style="color:var(--accent)">\${esc(n.agent)}</strong> · \${tags}</div>
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.88em;white-space:pre-wrap;word-break:break-word">\${esc(n.body.slice(0, 600))}\${n.body.length > 600 ? "…" : ""}</div>
+        </div>\`;
+      }).join("");
+    } catch (e) { /* silent */ }
+  };
+  tick();
+  feedTimer = setInterval(tick, 5000);
 }
 
 function buildPrompt(data, repoUrl) {

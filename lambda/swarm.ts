@@ -142,7 +142,9 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       const qs = new URLSearchParams(event.rawQueryString ?? "");
       const limit = qs.get("limit") ? Number(qs.get("limit")) : undefined;
       const since = qs.get("since") ?? undefined;
-      const notes = await listNotes({ scope, limit, since });
+      const tag = qs.get("tag") ?? undefined;
+      const author = qs.get("author") ?? undefined;
+      const notes = await listNotes({ scope, limit, since, tag, author });
       return jsonResponse(200, { notes });
     }
 

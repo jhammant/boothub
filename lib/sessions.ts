@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
-import { SwarmError, issueClaimKey } from "./swarm-storage.ts";
+import { SwarmError, issueClaimKey, writeNote } from "./swarm-storage.ts";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.SWARM_TABLE ?? "boothub-swarm";
@@ -152,6 +152,20 @@ export async function joinSession(sid: string, password: string): Promise<Sessio
   }
   const remaining = Math.max(res.Item.ttl - Math.floor(Date.now() / 1000), 60);
   const ck = await issueClaimKey({ scope: res.Item.scope, ttl_seconds: remaining });
+  // Auto-post a join note so existing scope members see new arrivals (Phase 16a).
+  // Failures here MUST NOT block the join — log and continue.
+  try {
+    const ownerHash = ck.key ? "claimkey-new" : "unknown";
+    await writeNote({
+      scope: res.Item.scope,
+      agent: "joiner",
+      body: `An agent joined this session via /s/${sid}. They should reply with @<their-name> once they pick one.`,
+      tags: ["join", "status"],
+      owner_id: ownerHash,
+    });
+  } catch (e) {
+    console.error("join announcement failed (non-fatal):", (e as Error).message);
+  }
   return {
     scope: res.Item.scope,
     profile_url: res.Item.profile_url,
