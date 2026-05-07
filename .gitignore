@@ -10,3 +10,4 @@ coverage/
 infra/cdk.out/
 infra/.cdk.staging/
 infra/cdk-outputs.json
+infra/cdk.context.json    # AWS account caching, regenerated on first deploy

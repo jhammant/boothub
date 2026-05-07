@@ -9,7 +9,8 @@ import {
   writeNote,
 } from "../lib/swarm-storage.ts";
 import { createSession, getSessionMeta, joinSession } from "../lib/sessions.ts";
-import { renderJoinPage } from "./join-page.ts";
+import { createUpload, deleteFile, getFile, isAdminAuthorized, listFiles } from "../lib/files.ts";
+import { renderAgentJoinMarkdown, renderJoinPage } from "./join-page.ts";
 
 interface Caller {
   owner_id: string;
@@ -60,19 +61,62 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       return jsonResponse(200, joined);
     }
 
-    // ─── /s/{sid} server-rendered join page ─────────────────────────────
+    // ─── /s/{sid} server-rendered join page (content-negotiated) ────────
     const mPage = path.match(/^\/s\/([A-Za-z0-9_-]+)\/?$/);
     if (mPage && method === "GET") {
-      const meta = await getSessionMeta(mPage[1]!);
-      const html = renderJoinPage({ sid: mPage[1]!, meta });
+      const sid = mPage[1]!;
+      const meta = await getSessionMeta(sid);
+      const accept = (event.headers["accept"] ?? event.headers["Accept"] ?? "").toLowerCase();
+      // Browsers send "text/html,..." in Accept; agents typically send */* or text/markdown.
+      const wantsHtml = accept.includes("text/html");
+      if (wantsHtml) {
+        const html = renderJoinPage({ sid, meta });
+        return {
+          statusCode: meta ? 200 : 404,
+          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+          body: html,
+        };
+      }
+      const md = renderAgentJoinMarkdown({ sid, meta });
       return {
         statusCode: meta ? 200 : 404,
-        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-        body: html,
+        headers: { "content-type": "text/markdown; charset=utf-8", "cache-control": "no-store" },
+        body: md,
       };
     }
 
-    // ─── All swarm endpoints require auth ───────────────────────────────
+    // ─── Files API: admin-gated upload/delete (bypasses scope auth) ─────
+    let mFile = path.match(/^\/api\/swarm\/([^/]+)\/files\/?$/);
+    if (mFile && method === "POST") {
+      const scope = mFile[1]!;
+      const adminHeader = event.headers["x-boothub-admin"] ?? event.headers["X-Boothub-Admin"];
+      if (!isAdminAuthorized(adminHeader)) {
+        return errorResponse(403, "files upload requires admin token");
+      }
+      const body = parseJson(event);
+      if (!body.name || typeof body.name !== "string") {
+        return errorResponse(400, "name required");
+      }
+      const upload = await createUpload({
+        scope,
+        name: body.name,
+        content_type: typeof body.content_type === "string" ? body.content_type : undefined,
+        uploader_id: "admin",
+      });
+      return jsonResponse(201, upload);
+    }
+    mFile = path.match(/^\/api\/swarm\/([^/]+)\/files\/([^/]+)\/?$/);
+    if (mFile && method === "DELETE") {
+      const [, scope, id] = mFile;
+      const adminHeader = event.headers["x-boothub-admin"] ?? event.headers["X-Boothub-Admin"];
+      if (!isAdminAuthorized(adminHeader)) {
+        return errorResponse(403, "files delete requires admin token");
+      }
+      await deleteFile(scope!, id!);
+      return { statusCode: 204, body: "" };
+    }
+
+    // ─── All other swarm endpoints require scope ClaimKey ───────────────
     const caller = await authorize(event);
     if (!caller) return errorResponse(401, "missing or invalid Authorization header");
 
@@ -125,6 +169,24 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
         headers: { "content-type": "text/markdown; charset=utf-8" },
         body: summary,
       };
+    }
+
+    // ─── Files API: scope-auth GETs (list + metadata with presigned URL)
+    m = path.match(/^\/api\/swarm\/([^/]+)\/files\/?$/);
+    if (m && method === "GET") {
+      const scope = m[1]!;
+      assertScope(caller, scope);
+      const qs = new URLSearchParams(event.rawQueryString ?? "");
+      const limit = qs.get("limit") ? Number(qs.get("limit")) : undefined;
+      const files = await listFiles(scope, limit);
+      return jsonResponse(200, { files });
+    }
+    m = path.match(/^\/api\/swarm\/([^/]+)\/files\/([^/]+)\/?$/);
+    if (m && method === "GET") {
+      const [, scope, id] = m;
+      assertScope(caller, scope!);
+      const file = await getFile(scope!, id!);
+      return jsonResponse(200, file);
     }
 
     return errorResponse(404, `not found: ${method} ${path}`);

@@ -76,6 +76,22 @@ export class BoothubStack extends Stack {
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
+    // ─── Blob bucket (Phase 13 — files API) ─────────────────────────────
+    const blobBucket = new Bucket(this, "BlobBucket", {
+      bucketName: `${props.domainName.replace(/\./g, "-")}-blobs`,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      encryption: BucketEncryption.S3_MANAGED,
+      removalPolicy: RemovalPolicy.RETAIN,
+      enforceSSL: true,
+      lifecycleRules: [
+        // Auto-expire blobs after 90 days; admins can re-upload if needed.
+        { expiration: Duration.days(90) },
+      ],
+    });
+
+    // CDK context value -c admin-hash=... — passed at deploy time.
+    const adminHash = (this.node.tryGetContext("admin-hash") as string | undefined) ?? "";
+
     // ─── Swarm Lambda ───────────────────────────────────────────────────
     const swarmFn = new NodejsFunction(this, "SwarmFn", {
       runtime: Runtime.NODEJS_22_X,
@@ -83,7 +99,11 @@ export class BoothubStack extends Stack {
       handler: "handler",
       timeout: Duration.seconds(15),
       memorySize: 384,
-      environment: { SWARM_TABLE: swarmTable.tableName },
+      environment: {
+        SWARM_TABLE: swarmTable.tableName,
+        BLOB_BUCKET: blobBucket.bucketName,
+        ...(adminHash ? { BOOTHUB_ADMIN_TOKEN_HASH: adminHash } : {}),
+      },
       bundling: {
         target: "es2022",
         minify: true,
@@ -92,6 +112,7 @@ export class BoothubStack extends Stack {
       },
     });
     swarmTable.grantReadWriteData(swarmFn);
+    blobBucket.grantReadWrite(swarmFn);
 
     // ─── API Gateway HTTP API ───────────────────────────────────────────
     const httpApi = new HttpApi(this, "HttpApi", {
@@ -159,6 +180,7 @@ export class BoothubStack extends Stack {
         "/index.html": staticBehavior(staticBucket),
         "/about.html": staticBehavior(staticBucket),
         "/favicon.ico": staticBehavior(staticBucket),
+        "/llms.txt": staticBehavior(staticBucket),
         "/app/*": staticBehavior(staticBucket),
         "/api/*": {
           origin: apiOrigin,

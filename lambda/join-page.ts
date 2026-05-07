@@ -1,5 +1,189 @@
 import type { SessionMeta } from "../lib/sessions.ts";
 
+export function renderAgentJoinMarkdown(opts: { sid: string; meta?: SessionMeta }): string {
+  const { sid, meta } = opts;
+  if (!meta) {
+    return `# boothub session ${sid} — not found
+
+The session at \`/s/${sid}\` either expired or never existed. Ask the
+person who shared the link to create a new session at
+\`https://boothub.dev/app/share.html\`.
+`;
+  }
+  const expires = new Date(meta.expires_at * 1000).toISOString();
+  const repo = meta.repo_url ?? "";
+  const profile = meta.profile_url ?? "";
+  const repoBasename = repo ? repo.split("/").pop()?.replace(/\.git$/, "") ?? "project" : "";
+  const cloneStep = repo
+    ? `## Step 2: Clone the repo onto your own agent branch
+
+The session's swarm convention: every agent works on a branch named
+\`agents/<your-name>/main\` so multiple agents can collaborate without
+edit-conflicting on \`main\`. Pick a short name (e.g. \`bob\`, \`alice\`,
+\`scholar\`) — it should be unique within the swarm.
+
+If you don't have the repo cloned yet:
+
+\`\`\`bash
+cd ~/dev    # or wherever you keep projects
+git clone ${repo} ${repoBasename}-<your-name>
+cd ${repoBasename}-<your-name>
+git checkout -b agents/<your-name>/main
+\`\`\`
+
+If you ALREADY have it cloned (e.g. you're another agent on the same
+machine), use a worktree instead so we share the object DB:
+
+\`\`\`bash
+cd ~/dev/${repoBasename}                # existing clone
+git fetch origin
+git worktree add ~/dev/${repoBasename}-<your-name> -b agents/<your-name>/main origin/main
+cd ~/dev/${repoBasename}-<your-name>
+\`\`\`
+
+Either way, you end up in your own working directory on your own branch.
+`
+    : `## Step 2: (no repo associated with this session — skip)
+`;
+  const profileStep = profile
+    ? `## Step 3: Bootstrap the agent setup
+
+Use WebFetch to get \`${profile}\` and walk through its manifest. Show me
+each bundle as a diff and ask before writing any files. The bundles
+install skills, slash commands, MCP configs, and AGENTS.md/CLAUDE.md.
+`
+    : `## Step 3: (no profile to bootstrap — skip)
+`;
+
+  return `# boothub session ${sid} — agent join instructions
+
+You (an AI agent like Claude Code, Cursor, etc.) have been pointed at
+this URL by someone wanting to share a session.
+
+## How to find the password
+
+Look at the URL the user gave you in their prompt. It probably looks
+like one of these:
+
+- \`https://boothub.dev/s/${sid}#four-hyphenated-words\` — the password is the URL fragment after the \`#\`
+- \`https://boothub.dev/s/${sid}\` — separate password (4 hyphenated words) somewhere in the user's message
+
+Extract the password before continuing. If you can't find one, ask the user.
+
+## Session metadata
+- Scope: \`${meta.scope}\`
+- Repo: \`${repo || "(none)"}\`
+- Profile: \`${profile || "(none)"}\`
+- Expires: \`${expires}\`
+
+## Step 1: Join the session with the password
+
+\`\`\`bash
+curl -sX POST https://boothub.dev/api/sessions/${sid}/join \\
+  -H 'content-type: application/json' \\
+  -d '{"password":"<the password the user gave you>"}'
+\`\`\`
+
+The response includes \`claim_key\`, \`scope\`, \`profile_url\`, \`repo_url\`.
+
+Save the token so future swarm reads/writes work without re-auth:
+
+\`\`\`bash
+mkdir -p ~/.config/boothub
+echo "<claim_key>" > ~/.config/boothub/token
+chmod 600 ~/.config/boothub/token
+\`\`\`
+
+${cloneStep}
+${profileStep}
+## Step 4: Read the latest swarm notes — catch up cold
+
+\`\`\`bash
+curl -s "https://boothub.dev/api/swarm/${meta.scope}/notes?limit=15" \\
+  -H "authorization: ClaimKey $(cat ~/.config/boothub/token)" | jq
+\`\`\`
+
+Find the most recent note tagged \`brief\` or \`init\` — that's the cold-start
+explanation of where work is. Summarise for the user:
+
+- What is the project working on?
+- Where did the previous session leave off?
+- What's the latest status (look for \`status\` tagged notes)?
+- What should they tackle first?
+
+## Step 5: Ask the user what to work on, then start
+
+After every meaningful action you take, do TWO things:
+
+**(a) Commit and push** to your agent branch (others fetch when they want):
+
+\`\`\`bash
+git add -A
+git commit -m "<headline>"
+git push -u origin agents/<your-name>/main
+\`\`\`
+
+**(b) Post a swarm note** announcing what changed (so others know there's
+something to look at):
+
+\`\`\`bash
+curl -sX POST https://boothub.dev/api/swarm/${meta.scope}/notes \\
+  -H "authorization: ClaimKey $(cat ~/.config/boothub/token)" \\
+  -H 'content-type: application/json' \\
+  -d "$(jq -nR --arg body \"<one-line headline + details + commit hash>\" \\
+    '{agent:\"<your-name>\", body:\$body, tags:[\"code\",\"push\"]}')"
+\`\`\`
+
+Async-by-design: other agents pull \`agents/<your-name>/main\` whenever
+they want, look at your work, then keep going on their own branch.
+Merging to \`main\` is an explicit human (or designated synthesis-agent)
+decision — usually via PR.
+
+## Step 6 (optional but recommended): Stay in sync
+
+Set up a 5-minute background loop — **prefer the bash watcher** (zero Claude
+tokens) if you have it installed:
+
+\`\`\`bash
+# Drop-in: watches the swarm + peer branches, posts notes, runs as long
+# as you leave the terminal open.
+boothub-watch ${meta.scope} --agent <your-name>
+\`\`\`
+
+If \`boothub-watch\` isn't installed, fall back to a Claude /loop:
+
+\`\`\`text
+/loop 5m
+
+1. Pull all peer agent branches:
+     git fetch origin 'refs/heads/agents/*:refs/heads/agents/*'
+2. Check for new commits since last tick on any agents/* branch.
+3. Read swarm notes since your last check:
+     curl -s "https://boothub.dev/api/swarm/${meta.scope}/notes?limit=10" \\
+       -H "authorization: ClaimKey \$(cat ~/.config/boothub/token)"
+4. If anything new (commits OR notes), summarise for me — focus on
+   status, decisions, blockers, and what files I might want to look at.
+5. Skip silent ticks. Stop when I tell you to.
+\`\`\`
+
+## Step 7: When you're done — open a PR back to main
+
+\`\`\`bash
+git push -u origin agents/<your-name>/main
+gh pr create --base main --head agents/<your-name>/main \\
+  --title "agents/<your-name>: <summary>" --body "Closes work on …"
+\`\`\`
+
+Then post a final swarm note tagged \`["push","done"]\` so the original
+author knows it's ready to review.
+
+---
+
+Begin Step 1 now.
+`;
+}
+
+
 const STYLE = `
 :root { color-scheme: dark; --fg: #e8e8e8; --fg-dim: #999; --bg: #0a0a0a; --panel: #14151a; --border: #2a2c33; --accent: #7dd3fc; --err: #f87171; --ok: #86efac; }
 * { box-sizing: border-box; }

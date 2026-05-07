@@ -89,16 +89,26 @@
 
     function renderShare(d) {
       const expires = new Date(d.expires_at * 1000).toISOString();
+      const oneLine = `${d.share_url}#${d.password}`;
       out.innerHTML = `
         <div class="ok">
-          <h2 style="margin-top:0">Share these two with your collaborator:</h2>
-          <p style="color:var(--fg-dim);margin-top:1rem;font-size:0.9em">URL</p>
-          <div class="urlline" id="url">${esc(d.share_url)}</div>
-          <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('url').innerText)">Copy URL</button>
+          <h2 style="margin-top:0">Send your collaborator one URL:</h2>
+          <p style="color:var(--fg-dim);margin-top:0.5rem;font-size:0.9em">
+            Tell them: "fetch this URL". Their agent will extract the password from the
+            <code>#</code> fragment automatically.
+          </p>
+          <div class="urlline" id="oneline">${esc(oneLine)}</div>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('oneline').innerText)">Copy one-line URL</button>
 
-          <p style="color:var(--fg-dim);margin-top:1.25rem;font-size:0.9em">Password</p>
-          <div class="pwline" id="pw">${esc(d.password)}</div>
-          <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('pw').innerText)">Copy password</button>
+          <details style="margin-top:1.25rem">
+            <summary style="cursor:pointer;color:var(--fg-dim);font-size:0.88em">…or send URL + password separately</summary>
+            <p style="color:var(--fg-dim);margin-top:0.75rem;font-size:0.85em">URL</p>
+            <div class="urlline" id="url">${esc(d.share_url)}</div>
+            <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('url').innerText)">Copy URL</button>
+            <p style="color:var(--fg-dim);margin-top:0.85rem;font-size:0.85em">Password</p>
+            <div class="pwline" id="pw">${esc(d.password)}</div>
+            <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('pw').innerText)">Copy password</button>
+          </details>
 
           <p style="margin-top:1.5rem;color:var(--fg-dim);font-size:0.9em">
             Scope <code>${esc(d.scope)}</code> · expires <code>${esc(expires)}</code>
