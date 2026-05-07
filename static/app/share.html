@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>boothub — share session</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥾</text></svg>">
+  <style>
+    :root { color-scheme: dark; --fg: #e8e8e8; --fg-dim: #999; --bg: #0a0a0a; --panel: #14151a; --border: #2a2c33; --accent: #7dd3fc; --err: #f87171; --ok: #86efac; }
+    * { box-sizing: border-box; }
+    body { font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1.5rem; background: var(--bg); color: var(--fg); }
+    h1 { font-size: 2rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+    .tag { color: var(--fg-dim); margin-top: 0; }
+    nav { font-size: 0.9em; color: var(--fg-dim); margin-bottom: 1.5rem; }
+    a { color: var(--accent); }
+    label { display: block; margin: 1rem 0 0.4rem; font-size: 0.9em; color: var(--fg-dim); }
+    .hint { color: var(--fg-dim); font-size: 0.85em; margin-top: 0.3rem; }
+    input, select, button { font: inherit; padding: 0.6rem 0.85rem; background: var(--panel); border: 1px solid var(--border); color: var(--fg); border-radius: 6px; box-sizing: border-box; }
+    input, select { width: 100%; }
+    input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+    button { background: var(--accent); color: #0a0a0a; font-weight: 600; cursor: pointer; margin-top: 1rem; padding: 0.7rem 1.25rem; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .out { margin-top: 1.5rem; }
+    .err { color: var(--err); padding: 0.85rem; border: 1px solid var(--err); border-radius: 8px; background: var(--panel); }
+    .ok { padding: 1.25rem; border: 1px solid var(--ok); border-radius: 8px; background: var(--panel); }
+    .ok .pwline { font-size: 1.4em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 0.8rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin: 0.5rem 0; user-select: all; word-break: break-all; }
+    .ok .urlline { font-size: 1.05em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 0.6rem 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin: 0.5rem 0; user-select: all; word-break: break-all; }
+    .copy-btn { background: var(--panel); color: var(--fg); border: 1px solid var(--border); padding: 0.4rem 0.75rem; font-size: 0.85em; margin-top: 0.3rem; }
+    pre { background: var(--bg); border: 1px solid var(--border); padding: 0.8rem 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.85em; white-space: pre-wrap; word-break: break-word; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  </style>
+</head>
+<body>
+  <nav><a href="/app/">← app</a></nav>
+  <h1>Share a session</h1>
+  <p class="tag">Get one URL + a memorable password for collaborators to "join my session". Both of you can read/write the same swarm.</p>
+
+  <form id="f">
+    <label for="scope">Scope name</label>
+    <input id="scope" name="scope" pattern="[a-z0-9][a-z0-9._-]{0,127}" placeholder="cloud-gym (auto-generated if blank)">
+    <p class="hint">Lowercase letters, numbers, <code>.</code> <code>-</code> <code>_</code>. This identifies your shared notebook.</p>
+
+    <label for="profile">Profile URL <span style="color:var(--fg-dim)">(optional)</span></label>
+    <input id="profile" name="profile" type="url" placeholder="https://boothub.dev/jhammant/swarm-pro" value="https://boothub.dev/jhammant/swarm-pro">
+    <p class="hint">The boothub profile your collaborator's agent should bootstrap before reading the swarm.</p>
+
+    <label for="repo">Git repo URL <span style="color:var(--fg-dim)">(optional)</span></label>
+    <input id="repo" name="repo" placeholder="git@github.com:jhammant/cloud-gym.git">
+    <p class="hint">If set, the join page tells collaborators to clone this first. Files live in git, coordination in the swarm.</p>
+
+    <label for="ttl">Expires in (hours)</label>
+    <input id="ttl" name="ttl" type="number" min="1" max="720" value="24">
+
+    <button type="submit">Create session</button>
+  </form>
+
+  <div id="out" class="out"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const out = $("out");
+
+    $("f").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      out.innerHTML = "creating…";
+      try {
+        const res = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            scope: $("scope").value.trim() || undefined,
+            profile_url: $("profile").value.trim() || undefined,
+            repo_url: $("repo").value.trim() || undefined,
+            ttl_hours: Number($("ttl").value),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          out.innerHTML = `<div class="err">${esc(data.error || res.statusText)}</div>`;
+          return;
+        }
+        renderShare(data);
+      } catch (err) {
+        out.innerHTML = `<div class="err">network error: ${esc(err.message)}</div>`;
+      }
+    });
+
+    function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+    function renderShare(d) {
+      const expires = new Date(d.expires_at * 1000).toISOString();
+      out.innerHTML = `
+        <div class="ok">
+          <h2 style="margin-top:0">Share these two with your collaborator:</h2>
+          <p style="color:var(--fg-dim);margin-top:1rem;font-size:0.9em">URL</p>
+          <div class="urlline" id="url">${esc(d.share_url)}</div>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('url').innerText)">Copy URL</button>
+
+          <p style="color:var(--fg-dim);margin-top:1.25rem;font-size:0.9em">Password</p>
+          <div class="pwline" id="pw">${esc(d.password)}</div>
+          <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('pw').innerText)">Copy password</button>
+
+          <p style="margin-top:1.5rem;color:var(--fg-dim);font-size:0.9em">
+            Scope <code>${esc(d.scope)}</code> · expires <code>${esc(expires)}</code>
+          </p>
+        </div>
+
+        <h2 style="margin-top:2rem">For your own Claude session</h2>
+        <p>Save your claim-key locally so your agent can write to the same scope:</p>
+        <pre><code id="tok">mkdir -p ~/.config/boothub && echo "${esc(d.claim_key)}" > ~/.config/boothub/token</code></pre>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('tok').innerText)">Copy</button>
+
+        <p style="margin-top:1.25rem">Then in your existing Claude Code session, run:</p>
+        <pre><code id="firstnote">curl -s -X POST "https://boothub.dev/api/swarm/${esc(d.scope)}/notes" \\
+  -H "authorization: ClaimKey $(cat ~/.config/boothub/token)" \\
+  -H 'content-type: application/json' \\
+  -d '{"agent":"jhammant","body":"Session started. Working on …","tags":["brief"]}'</code></pre>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('firstnote').innerText)">Copy</button>
+      `;
+    }
+  </script>
+</body>
+</html>

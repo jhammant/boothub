@@ -8,6 +8,8 @@ import {
   synthesize,
   writeNote,
 } from "../lib/swarm-storage.ts";
+import { createSession, getSessionMeta, joinSession } from "../lib/sessions.ts";
+import { renderJoinPage } from "./join-page.ts";
 
 interface Caller {
   owner_id: string;
@@ -28,6 +30,46 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       const ttl = typeof body.ttl_seconds === "number" ? body.ttl_seconds : undefined;
       const result = await issueClaimKey({ scope: body.scope, ttl_seconds: ttl });
       return jsonResponse(201, result);
+    }
+
+    // ─── Sessions: create / metadata / join (no auth required) ──────────
+    if (method === "POST" && path === "/api/sessions") {
+      const body = parseJson(event);
+      const session = await createSession({
+        scope: typeof body.scope === "string" ? body.scope : undefined,
+        profile_url: typeof body.profile_url === "string" ? body.profile_url : undefined,
+        repo_url: typeof body.repo_url === "string" ? body.repo_url : undefined,
+        ttl_hours: typeof body.ttl_hours === "number" ? body.ttl_hours : undefined,
+      });
+      return jsonResponse(201, session);
+    }
+    let mSession = path.match(/^\/api\/sessions\/([A-Za-z0-9_-]+)\/?$/);
+    if (mSession && method === "GET") {
+      const meta = await getSessionMeta(mSession[1]!);
+      if (!meta) return errorResponse(404, "session not found or expired");
+      // Public metadata only (no password_hash, no claim-key).
+      return jsonResponse(200, meta);
+    }
+    mSession = path.match(/^\/api\/sessions\/([A-Za-z0-9_-]+)\/join\/?$/);
+    if (mSession && method === "POST") {
+      const body = parseJson(event);
+      if (!body.password || typeof body.password !== "string") {
+        return errorResponse(400, "password required");
+      }
+      const joined = await joinSession(mSession[1]!, body.password);
+      return jsonResponse(200, joined);
+    }
+
+    // ─── /s/{sid} server-rendered join page ─────────────────────────────
+    const mPage = path.match(/^\/s\/([A-Za-z0-9_-]+)\/?$/);
+    if (mPage && method === "GET") {
+      const meta = await getSessionMeta(mPage[1]!);
+      const html = renderJoinPage({ sid: mPage[1]!, meta });
+      return {
+        statusCode: meta ? 200 : 404,
+        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+        body: html,
+      };
     }
 
     // ─── All swarm endpoints require auth ───────────────────────────────

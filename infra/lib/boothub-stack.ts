@@ -106,6 +106,12 @@ export class BoothubStack extends Stack {
       methods: [HttpMethod.GET, HttpMethod.POST, HttpMethod.DELETE, HttpMethod.PUT],
       integration: swarmIntegration,
     });
+    // /s/{sid} server-rendered join page also goes to swarmFn
+    httpApi.addRoutes({
+      path: "/s/{sid}",
+      methods: [HttpMethod.GET],
+      integration: swarmIntegration,
+    });
     // All other GETs go to manifestFn
     httpApi.addRoutes({
       path: "/{proxy+}",

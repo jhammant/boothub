@@ -1,0 +1,163 @@
+import type { SessionMeta } from "../lib/sessions.ts";
+
+const STYLE = `
+:root { color-scheme: dark; --fg: #e8e8e8; --fg-dim: #999; --bg: #0a0a0a; --panel: #14151a; --border: #2a2c33; --accent: #7dd3fc; --err: #f87171; --ok: #86efac; }
+* { box-sizing: border-box; }
+body { font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1.5rem; background: var(--bg); color: var(--fg); }
+h1 { font-size: 2rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+.tag { color: var(--fg-dim); margin-top: 0; }
+nav { font-size: 0.9em; color: var(--fg-dim); margin-bottom: 1.5rem; }
+a { color: var(--accent); }
+label { display: block; margin: 1rem 0 0.4rem; font-size: 0.9em; color: var(--fg-dim); }
+input, button { font: inherit; padding: 0.6rem 0.85rem; background: var(--panel); border: 1px solid var(--border); color: var(--fg); border-radius: 6px; box-sizing: border-box; }
+input { width: 100%; }
+input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+button { background: var(--accent); color: #0a0a0a; font-weight: 600; cursor: pointer; margin-top: 1rem; padding: 0.7rem 1.25rem; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.meta { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1.1rem; margin: 1rem 0; }
+.meta .row { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.92em; }
+.meta .row span:first-child { color: var(--fg-dim); }
+.meta .row code { background: transparent; border: 0; padding: 0; }
+.out { margin-top: 1.5rem; }
+.err { color: var(--err); padding: 0.85rem; border: 1px solid var(--err); border-radius: 8px; background: var(--panel); }
+.expired { padding: 1.5rem; border: 1px solid var(--err); border-radius: 8px; background: var(--panel); color: var(--err); }
+pre { background: var(--panel); padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 0.9em; white-space: pre-wrap; word-break: break-word; }
+code { background: var(--panel); padding: 0.1em 0.35em; border-radius: 4px; border: 1px solid var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+.copy-btn { background: var(--panel); color: var(--fg); border: 1px solid var(--border); padding: 0.35rem 0.75rem; font-size: 0.85em; margin-top: 0.4rem; }
+.step-num { display: inline-block; background: var(--panel); border: 1px solid var(--border); border-radius: 50%; width: 1.5rem; height: 1.5rem; text-align: center; line-height: 1.5rem; font-size: 0.8em; color: var(--accent); margin-right: 0.5rem; }
+`;
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string),
+  );
+}
+
+function escapeJs(s: string): string {
+  return JSON.stringify(s);
+}
+
+export function renderJoinPage(opts: { sid: string; meta?: SessionMeta }): string {
+  const { sid, meta } = opts;
+  const head = `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>boothub — join session</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥾</text></svg>">
+<style>${STYLE}</style></head><body><nav><a href="/">← boothub</a></nav>`;
+
+  if (!meta) {
+    return `${head}
+<h1>Session not found</h1>
+<div class="expired">
+  <p>No active session at <code>/s/${escapeHtml(sid)}</code>.</p>
+  <p>It might have expired, or the URL might be a typo. Ask the person who shared it to start a new session.</p>
+</div>
+<p style="margin-top:1.5rem"><a href="/app/share.html">Create your own session →</a></p>
+</body></html>`;
+  }
+
+  const expires = new Date(meta.expires_at * 1000).toISOString();
+  const repoBlock = meta.repo_url
+    ? `<div class="row"><span>Repo</span><code>${escapeHtml(meta.repo_url)}</code></div>`
+    : "";
+  const profileBlock = meta.profile_url
+    ? `<div class="row"><span>Profile</span><code>${escapeHtml(meta.profile_url)}</code></div>`
+    : "";
+
+  return `${head}
+<h1>Join session</h1>
+<p class="tag">Enter the password the session creator gave you.</p>
+
+<div class="meta">
+  <div class="row"><span>Scope</span><code>${escapeHtml(meta.scope)}</code></div>
+  ${profileBlock}
+  ${repoBlock}
+  <div class="row"><span>Expires</span><code>${escapeHtml(expires)}</code></div>
+</div>
+
+<form id="f">
+  <label for="pw">Password</label>
+  <input id="pw" name="password" required autocomplete="off" autofocus
+         pattern="[a-z]+(-[a-z]+){3}" placeholder="four-words-with-hyphens">
+  <button type="submit">Join</button>
+</form>
+
+<div id="out" class="out"></div>
+
+<script>
+const SID = ${escapeJs(sid)};
+const SCOPE = ${escapeJs(meta.scope)};
+const PROFILE = ${escapeJs(meta.profile_url ?? "")};
+const REPO = ${escapeJs(meta.repo_url ?? "")};
+
+const f = document.getElementById("f");
+const out = document.getElementById("out");
+
+f.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = document.getElementById("pw").value.trim();
+  out.innerHTML = "";
+  try {
+    const res = await fetch(\`/api/sessions/\${encodeURIComponent(SID)}/join\`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      out.innerHTML = \`<div class="err">\${esc(data.error || res.statusText)}</div>\`;
+      return;
+    }
+    showJoined(data);
+  } catch (err) {
+    out.innerHTML = \`<div class="err">network error: \${esc(err.message)}</div>\`;
+  }
+});
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function showJoined(data) {
+  const cloneBlock = REPO
+    ? \`<p><span class="step-num">1</span>Clone the repo:</p><pre><code>git clone \${esc(REPO)} && cd \${esc(REPO.split('/').pop().replace(/\\.git$/, ''))}</code></pre>\`
+    : "";
+  const startStep = REPO ? 2 : 1;
+  const prompt = buildPrompt(data, REPO);
+  out.innerHTML = \`
+    <h2 style="margin-top:2rem;margin-bottom:0.5rem">You're in.</h2>
+    \${cloneBlock}
+    <p><span class="step-num">\${startStep}</span>Save the token:</p>
+    <pre><code id="tok">mkdir -p ~/.config/boothub && echo "\${esc(data.claim_key)}" > ~/.config/boothub/token</code></pre>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('tok').innerText)">Copy</button>
+    <p style="margin-top:1.5rem"><span class="step-num">\${startStep + 1}</span>Open Claude Code (or your agent) in this project and paste:</p>
+    <pre><code id="prompt">\${esc(prompt)}</code></pre>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('prompt').innerText)">Copy prompt</button>
+    <p style="margin-top:1.5rem;color:var(--fg-dim);font-size:0.9em">
+      Token expires <code>\${esc(new Date(data.expires_at * 1000).toISOString())}</code>.
+    </p>
+  \`;
+}
+
+function buildPrompt(data, repoUrl) {
+  const lines = [];
+  if (PROFILE) {
+    lines.push(\`Fetch \${PROFILE} using WebFetch and bootstrap me. Approve all bundles.\`);
+    lines.push("");
+  }
+  lines.push(\`Then read the swarm to see where the session left off:\`);
+  lines.push(\`\\\`\\\`\\\`bash\`);
+  lines.push(\`curl -s "https://boothub.dev/api/swarm/\${data.scope}/notes?limit=10" \\\\\\n  -H "authorization: ClaimKey $(cat ~/.config/boothub/token)" | jq\`);
+  lines.push(\`\\\`\\\`\\\`\`);
+  lines.push("");
+  lines.push(\`Summarise what's been done, then ask me what to tackle.\`);
+  lines.push("");
+  lines.push(\`After each meaningful action, write a swarm note via:\`);
+  lines.push(\`\\\`\\\`\\\`bash\`);
+  lines.push(\`curl -s -X POST "https://boothub.dev/api/swarm/\${data.scope}/notes" \\\\\\n  -H "authorization: ClaimKey $(cat ~/.config/boothub/token)" \\\\\\n  -H 'content-type: application/json' \\\\\\n  -d "{\\\"agent\\\":\\\"<your-name>\\\",\\\"body\\\":\\\"<one-line summary + details>\\\",\\\"tags\\\":[\\\"code\\\"]}"\`);
+  lines.push(\`\\\`\\\`\\\`\`);
+  return lines.join("\\n");
+}
+</script></body></html>`;
+}
