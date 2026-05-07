@@ -334,43 +334,147 @@ function showJoined(data) {
       Token expires <code>\${esc(new Date(data.expires_at * 1000).toISOString())}</code>.
     </p>
 
-    <h2 style="margin-top:2.5rem;margin-bottom:0.5rem">Live swarm — \${esc(data.scope)}</h2>
-    <p style="color:var(--fg-dim);font-size:0.9em">Recent notes from this scope. Refreshes every 5s.</p>
-    <div id="feed" style="margin-top:1rem">loading…</div>
+    <h2 style="margin-top:2.5rem;margin-bottom:0.25rem">Live swarm — \${esc(data.scope)}</h2>
+    <p style="color:var(--fg-dim);font-size:0.85em;margin:0 0 1rem">Refreshes every 5s · token + scope are now in this browser</p>
+
+    <div id="stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin:1rem 0">
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.85rem">
+        <div style="font-size:0.7em;color:var(--fg-dim);text-transform:uppercase;letter-spacing:0.04em">Notes</div>
+        <div id="stat-notes" style="font-size:1.4em;font-weight:700">–</div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.85rem">
+        <div style="font-size:0.7em;color:var(--fg-dim);text-transform:uppercase;letter-spacing:0.04em">Agents</div>
+        <div id="stat-agents" style="font-size:1.4em;font-weight:700">–</div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.85rem">
+        <div style="font-size:0.7em;color:var(--fg-dim);text-transform:uppercase;letter-spacing:0.04em">Files</div>
+        <div id="stat-files" style="font-size:1.4em;font-weight:700">–</div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.85rem">
+        <div style="font-size:0.7em;color:var(--fg-dim);text-transform:uppercase;letter-spacing:0.04em">Last activity</div>
+        <div id="stat-last" style="font-size:1.4em;font-weight:700">–</div>
+      </div>
+    </div>
+
+    <div style="font-size:0.75em;color:var(--fg-dim);text-transform:uppercase;letter-spacing:0.04em;margin-top:1rem">Members</div>
+    <div id="members" style="margin:0.4rem 0 1rem">–</div>
+
+    <div id="brief"></div>
+
+    <div style="font-size:0.75em;color:var(--fg-dim);text-transform:uppercase;letter-spacing:0.04em;margin-top:1rem">Recent notes</div>
+    <div id="feed" style="margin-top:0.5rem">loading…</div>
   \`;
   startFeed(data.claim_key, data.scope);
 }
 
 let feedTimer = null;
-let feedSeenTs = "";
+let allNotes = [];
+let allFiles = [];
+
+function relativeTime(ts) {
+  const diffSec = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
+  if (diffSec < 60) return Math.floor(diffSec) + "s ago";
+  if (diffSec < 3600) return Math.floor(diffSec / 60) + "m ago";
+  if (diffSec < 86400) return Math.floor(diffSec / 3600) + "h ago";
+  return Math.floor(diffSec / 86400) + "d ago";
+}
+
+function colorForAgent(agent) {
+  let h = 0;
+  for (let i = 0; i < agent.length; i++) h = (h * 31 + agent.charCodeAt(i)) >>> 0;
+  return "hsl(" + (h % 360) + ",60%,55%)";
+}
 
 function startFeed(token, scope) {
   if (feedTimer) clearInterval(feedTimer);
+  const headers = { authorization: "ClaimKey " + token };
+
   const tick = async () => {
     try {
-      const qs = "limit=20" + (feedSeenTs ? "&since=" + encodeURIComponent(feedSeenTs) : "");
-      const res = await fetch(\`/api/swarm/\${encodeURIComponent(scope)}/notes?\${qs}\`, {
-        headers: { authorization: "ClaimKey " + token },
-      });
-      if (!res.ok) return;
-      const { notes } = await res.json();
-      const feed = document.getElementById("feed");
-      if (!feed) return;
-      if (!notes || notes.length === 0) {
-        if (!feedSeenTs) feed.innerHTML = '<p style="color:var(--fg-dim)">no notes yet</p>';
-        return;
+      const [notesRes, filesRes] = await Promise.all([
+        fetch(\`/api/swarm/\${encodeURIComponent(scope)}/notes?limit=200\`, { headers }),
+        fetch(\`/api/swarm/\${encodeURIComponent(scope)}/files?limit=50\`, { headers }),
+      ]);
+      if (notesRes.ok) {
+        const j = await notesRes.json();
+        allNotes = j.notes || [];
       }
-      // Render newest-first; track latest ts to avoid double-pulling
-      if (notes[0]) feedSeenTs = notes[0].ts;
-      feed.innerHTML = notes.map(n => {
-        const tags = (n.tags || []).map(t => \`<span style="background:var(--panel);border:1px solid var(--border);padding:0 0.4em;border-radius:999px;font-size:0.78em;margin-right:0.3em">\${esc(t)}</span>\`).join("");
-        return \`<div style="padding:0.8rem 1rem;background:var(--panel);border:1px solid var(--border);border-radius:8px;margin:0.5rem 0">
-          <div style="font-size:0.82em;color:var(--fg-dim);margin-bottom:0.4rem">\${esc(n.ts)} · <strong style="color:var(--accent)">\${esc(n.agent)}</strong> · \${tags}</div>
-          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.88em;white-space:pre-wrap;word-break:break-word">\${esc(n.body.slice(0, 600))}\${n.body.length > 600 ? "…" : ""}</div>
-        </div>\`;
-      }).join("");
+      if (filesRes.ok) {
+        const j = await filesRes.json();
+        allFiles = j.files || [];
+      }
+      render();
     } catch (e) { /* silent */ }
   };
+
+  function render() {
+    // Stats
+    const memberMap = new Map();
+    for (const n of allNotes) {
+      const m = memberMap.get(n.agent) || { count: 0, lastTs: "", tags: new Set() };
+      m.count++;
+      if (!m.lastTs || n.ts > m.lastTs) m.lastTs = n.ts;
+      (n.tags || []).forEach(t => m.tags.add(t));
+      memberMap.set(n.agent, m);
+    }
+    document.getElementById("stat-notes").textContent = allNotes.length;
+    document.getElementById("stat-agents").textContent = memberMap.size;
+    document.getElementById("stat-files").textContent = allFiles.length;
+    document.getElementById("stat-last").textContent =
+      allNotes[0] ? relativeTime(allNotes[0].ts) : "—";
+
+    // Members
+    const members = [...memberMap.entries()]
+      .sort((a, b) => b[1].lastTs.localeCompare(a[1].lastTs))
+      .map(([agent, m]) => {
+        const dot = colorForAgent(agent);
+        return \`<span title="\${esc([...m.tags].join(', ') || '(no tags)')}" style="display:inline-flex;align-items:center;gap:0.4em;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:0.3em 0.75em;margin:0.2em 0.3em 0.2em 0;font-size:0.85em">
+          <span style="width:0.65em;height:0.65em;border-radius:50%;background:\${dot}"></span>
+          <strong style="color:var(--fg)">\${esc(agent)}</strong>
+          <span style="color:var(--fg-dim)">· \${m.count} · \${esc(relativeTime(m.lastTs))}</span>
+        </span>\`;
+      }).join("");
+    document.getElementById("members").innerHTML = members || '<span style="color:var(--fg-dim)">no members yet</span>';
+
+    // Pinned brief
+    const brief = allNotes.find(n => (n.tags || []).some(t => t === "brief" || t === "init"));
+    const briefEl = document.getElementById("brief");
+    if (brief && briefEl) {
+      const dot = colorForAgent(brief.agent);
+      briefEl.innerHTML = \`
+        <div style="margin-top:1.25rem;background:linear-gradient(180deg, rgba(125,211,252,0.06), transparent);border:1px solid var(--accent);border-radius:8px;padding:1rem 1.25rem">
+          <div style="font-size:0.7em;color:var(--accent);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">📌 Pinned brief · \${esc(relativeTime(brief.ts))}</div>
+          <div style="font-size:0.82em;color:var(--fg-dim);margin-bottom:0.5rem">
+            <span style="display:inline-block;width:0.6em;height:0.6em;border-radius:50%;background:\${dot};vertical-align:middle;margin-right:0.4em"></span>
+            <strong style="color:var(--fg)">\${esc(brief.agent)}</strong>
+          </div>
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-word;max-height:18rem;overflow-y:auto">\${esc(brief.body)}</div>
+        </div>\`;
+    } else if (briefEl) briefEl.innerHTML = "";
+
+    // Recent notes (excluding the pinned brief)
+    const feedEl = document.getElementById("feed");
+    if (!feedEl) return;
+    const recent = allNotes.filter(n => !brief || n.id !== brief.id).slice(0, 30);
+    if (recent.length === 0) {
+      feedEl.innerHTML = '<p style="color:var(--fg-dim)">no other notes yet</p>';
+      return;
+    }
+    feedEl.innerHTML = recent.map(n => {
+      const dot = colorForAgent(n.agent);
+      const tags = (n.tags || []).map(t => \`<span style="background:rgba(125,211,252,0.08);border:1px solid rgba(125,211,252,0.25);color:var(--accent);padding:0 0.4em;border-radius:999px;font-size:0.72em;margin-right:0.3em">\${esc(t)}</span>\`).join("");
+      return \`<div style="padding:0.7rem 1rem;background:var(--panel);border:1px solid var(--border);border-radius:8px;margin:0.4rem 0">
+        <div style="font-size:0.78em;color:var(--fg-dim);margin-bottom:0.3rem">
+          <span style="display:inline-block;width:0.55em;height:0.55em;border-radius:50%;background:\${dot};vertical-align:middle;margin-right:0.4em"></span>
+          <strong style="color:var(--fg)">\${esc(n.agent)}</strong>
+          · \${esc(relativeTime(n.ts))}
+          · \${tags}
+        </div>
+        <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-word">\${esc(n.body.slice(0, 400))}\${n.body.length > 400 ? "…" : ""}</div>
+      </div>\`;
+    }).join("");
+  }
+
   tick();
   feedTimer = setInterval(tick, 5000);
 }
