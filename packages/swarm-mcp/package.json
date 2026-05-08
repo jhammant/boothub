@@ -10,10 +10,14 @@
   "main": "./dist/index.js",
   "files": ["dist", "README.md"],
   "scripts": {
-    "build": "tsc -p .",
+    "build": "tsc -p . && chmod +x dist/cli.js",
     "prepublishOnly": "npm run build",
     "start": "tsx src/cli.ts"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://boothub.dev",
   "keywords": ["mcp", "model-context-protocol", "boothub", "agent", "swarm"],
   "repository": {
     "type": "git",
