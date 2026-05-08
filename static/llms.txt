@@ -30,18 +30,38 @@ If a file doesn't exist, the corresponding endpoints return 401/403.
 
 ```bash
 # Read the manifest as text/markdown. Apply the preset filter via URL path.
-curl -s https://boothub.dev/<USER>[/<PRESET>]
+curl -s https://boothub.dev/<NAME>[/<PRESET>]
 # Then walk through `bundles:` in the YAML frontmatter, install with the
 # user's approval. See: https://boothub.dev/about.html (trust model).
 ```
 
-URL grammar:
+`<NAME>` can be a **built-in profile** (no GitHub account required) or any
+GitHub user with a `boothub-profile` repo.
+
+### Built-in defaults (recommended starting points)
+
+| URL | What |
+|---|---|
+| `boothub.dev/starter` | minimal CLAUDE.md + AGENTS.md + handoff/note commands |
+| `boothub.dev/starter/swarm` | + GitHub-as-shared-memory (zero infra) |
+| `boothub.dev/starter/swarm-hosted` | + boothub.dev hosted swarm API |
+| `boothub.dev/team-duo` | 2 personas: Architect + Builder, with swarm |
+| `boothub.dev/team-quad` | 4 personas: Architect + Builder + Researcher + Guardian |
+| `boothub.dev/stack-typescript` | TS conventions (strict, vitest, no any) |
+| `boothub.dev/stack-python` | uv + pytest + type hints |
+| `boothub.dev/stack-rust` | clippy + fmt + idiomatic patterns |
+
+These names (`starter`, `team-duo`, `team-quad`, `stack-typescript`, `stack-python`,
+`stack-rust`) are reserved — they shadow any GitHub user with the same name.
+
+### URL grammar
 
 | URL | Meaning |
 |---|---|
-| `https://boothub.dev/USER` | default preset of USER's profile |
-| `https://boothub.dev/USER/PRESET` | named preset (404 if missing) |
-| `?ref=v1.2` | pin to a tag/branch/sha (default `main`) |
+| `https://boothub.dev/NAME` | default preset of the named profile |
+| `https://boothub.dev/NAME/PRESET` | named preset (404 if missing) |
+| `https://boothub.dev/GITHUB-USER` | user-owned profile from `github.com/<user>/boothub-profile` |
+| `?ref=v1.2` | pin to a tag/branch/sha (default `main`, github profiles only) |
 | `?target=cursor` | filter `only-on` bundles to this target |
 | `?nocache=1` | bypass edge cache |
 

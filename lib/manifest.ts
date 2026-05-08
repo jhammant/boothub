@@ -90,16 +90,27 @@ export function rawUrl(source: string, ref: string, path: string): string {
   return `https://raw.githubusercontent.com/${user}/${repo}/${ref}/${path}`;
 }
 
+const BOOTHUB_BASE = "https://boothub.dev";
+
+export function builtinUrl(profile: string, path: string): string {
+  return `${BOOTHUB_BASE}/_assets/profiles/${profile}/${path}`;
+}
+
 export function resolveFromUrls(manifest: Manifest, ref: string): Manifest {
+  const isBuiltin = manifest.source === "builtin";
   return {
     ...manifest,
     bundles: manifest.bundles.map((b) => {
       if (b.kind !== "files") return b;
       return {
         ...b,
-        files: b.files.map((f) =>
-          f.from ? { ...f, from: rawUrl(manifest.source, ref, f.from) } : f,
-        ),
+        files: b.files.map((f) => {
+          if (!f.from) return f;
+          const from = isBuiltin
+            ? builtinUrl(manifest.profile, f.from)
+            : rawUrl(manifest.source, ref, f.from);
+          return { ...f, from };
+        }),
       };
     }),
   };

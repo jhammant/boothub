@@ -65,7 +65,7 @@ export const zManifest = z
     boothub: z.literal(1),
     profile: z.string().min(1),
     generated: z.string().datetime().optional(),
-    source: z.string().url(),
+    source: z.union([z.string().url(), z.literal("builtin")]),
     targets: z.array(zTarget).min(1),
     summary: z.string().min(1),
     presets: z.record(z.string(), z.array(z.string()).min(1)),

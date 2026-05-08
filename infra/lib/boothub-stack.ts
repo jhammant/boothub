@@ -51,6 +51,13 @@ export class BoothubStack extends Stack {
       destinationBucket: staticBucket,
     });
 
+    new BucketDeployment(this, "ProfilesDeploy", {
+      sources: [Source.asset(join(root, "profiles"))],
+      destinationBucket: staticBucket,
+      destinationKeyPrefix: "_assets/profiles",
+      prune: false, // do not delete /static keys when deploying /_assets/profiles
+    });
+
     // ─── Manifest Lambda ────────────────────────────────────────────────
     const manifestFn = new NodejsFunction(this, "ManifestFn", {
       runtime: Runtime.NODEJS_22_X,
@@ -182,6 +189,7 @@ export class BoothubStack extends Stack {
         "/favicon.ico": staticBehavior(staticBucket),
         "/llms.txt": staticBehavior(staticBucket),
         "/app/*": staticBehavior(staticBucket),
+        "/_assets/*": staticBehavior(staticBucket),
         "/api/*": {
           origin: apiOrigin,
           viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,

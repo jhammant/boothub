@@ -190,3 +190,33 @@ describe("renderProfile (live fetch mocked)", () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe("builtin profiles", () => {
+  it("resolves source: builtin manifests against /_assets/profiles/", () => {
+    const text = readFileSync(join(__dirname, "..", "profiles", "starter", "MANIFEST.md"), "utf8");
+    const { manifest } = parseManifest(text);
+    expect(manifest.source).toBe("builtin");
+    const resolved = resolveFromUrls(manifest, "ignored-for-builtin");
+    const ctx = resolved.bundles.find((b) => b.id === "project-context");
+    if (ctx?.kind !== "files") throw new Error("expected files bundle");
+    expect(ctx.files[0]?.from).toBe(
+      "https://boothub.dev/_assets/profiles/starter/project/CLAUDE.md",
+    );
+  });
+
+  it("fetches builtin manifests from S3 path, not GitHub", async () => {
+    const text = readFileSync(join(__dirname, "..", "profiles", "starter", "MANIFEST.md"), "utf8");
+    let capturedUrl = "";
+    const fakeFetch = async (url: string) => {
+      capturedUrl = url;
+      return new Response(text, { status: 200, headers: { "content-type": "text/plain" } });
+    };
+    await renderProfile({
+      user: "starter",
+      preset: "default",
+      fetch: fakeFetch as unknown as typeof globalThis.fetch,
+    });
+    expect(capturedUrl).toBe("https://boothub.dev/_assets/profiles/starter/MANIFEST.md");
+    expect(capturedUrl).not.toMatch(/raw\.githubusercontent\.com/);
+  });
+});

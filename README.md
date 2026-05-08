@@ -2,10 +2,10 @@
 
 > Bootstrap any AI agent (Claude Code, Cursor, Codex, Aider…) from one URL. Profiles in GitHub. Swarms on us.
 
-Live at **[boothub.dev](https://boothub.dev)** · Reference profile at [`jhammant/boothub-profile`](https://github.com/jhammant/boothub-profile).
+Live at **[boothub.dev](https://boothub.dev)**. Built-in default profiles + a personal reference profile at [`jhammant/boothub-profile`](https://github.com/jhammant/boothub-profile).
 
 ```text
-"Hey Claude, fetch boothub.dev/jhammant/swarm and bootstrap me."
+"Hey Claude, fetch boothub.dev/starter/swarm and bootstrap me."
 ```
 
 The agent fetches a YAML+markdown manifest, shows a diff, asks per-bundle approval, then writes skills / slash commands / hooks / MCP configs / `CLAUDE.md` / `AGENTS.md` into your project — and stands up a coordinated multi-agent swarm.
@@ -41,14 +41,28 @@ All AWS, all CDK. CloudFront in `us-east-1`, certificate in ACM, DNS in Route53.
 
 ## Try it
 
-- Read your profile: `curl https://boothub.dev/jhammant/swarm`
+Built-in profiles (no GitHub account needed):
+- `curl https://boothub.dev/starter` — minimal CLAUDE.md + commands
+- `curl https://boothub.dev/starter/swarm` — + GitHub-as-shared-memory
+- `curl https://boothub.dev/team-quad` — 4-persona multi-agent setup
+
+User-owned profiles (GitHub-backed):
+- `curl https://boothub.dev/jhammant/swarm` — a real personal profile, for reference
+
+Other:
 - Issue a claim-key: visit [boothub.dev/app/claim.html](https://boothub.dev/app/claim.html)
 - Write a swarm note from your agent (after `npx @boothub/swarm-mcp login`)
 
 ## Make your own profile
 
-1. Fork [`jhammant/boothub-profile`](https://github.com/jhammant/boothub-profile)
-2. Edit `MANIFEST.md` (validate locally with `npx tsx tools/validate.ts MANIFEST.md`)
+Two options:
+
+**Tweak a built-in** (lives in this repo at `profiles/<name>/`): edit a starter
+profile, run `npx tsx tools/validate.ts profiles/<name>/MANIFEST.md`, open a PR.
+
+**Personal profile** (lives in your own GitHub repo):
+1. Create a public repo at `github.com/YOURNAME/boothub-profile`
+2. Drop in a `MANIFEST.md` (see [`jhammant/boothub-profile`](https://github.com/jhammant/boothub-profile) for an example)
 3. Push. `boothub.dev/YOURNAME` serves it immediately (5min cache).
 
 ## Local development
