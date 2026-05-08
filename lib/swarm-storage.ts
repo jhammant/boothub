@@ -26,6 +26,7 @@ export interface ClaimKey {
   key: string;
   scope: string;
   expires_at: number;
+  owner_id: string;
 }
 
 export interface ScopeMeta {
@@ -211,7 +212,7 @@ export async function issueClaimKey(input: {
   const ttl = Math.min(Math.max(input.ttl_seconds ?? 60 * 60 * 24 * 30, 60), 60 * 60 * 24 * 365);
   const expires_at = Math.floor(Date.now() / 1000) + ttl;
   const hash = sha256Hex(key);
-  // owner_id for claim-key flow is the hash itself (uniquely identifies the key holder)
+  const owner_id = `claimkey#${hash.slice(0, 16)}`;
   await ddb.send(
     new PutCommand({
       TableName: TABLE,
@@ -219,12 +220,12 @@ export async function issueClaimKey(input: {
         pk: `key#${hash}`,
         sk: "meta",
         scope: input.scope,
-        owner_id: `claimkey#${hash.slice(0, 16)}`,
+        owner_id,
         ttl: expires_at,
       },
     }),
   );
-  return { key, scope: input.scope, expires_at };
+  return { key, scope: input.scope, expires_at, owner_id };
 }
 
 /** Returns the (scope, owner_id) for a key, or undefined if invalid/expired. */

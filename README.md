@@ -91,13 +91,35 @@ See `docs/aws-deployment.md` for the full topology + cost notes (<$1/month idle)
 - [`jhammant/boothub`](https://github.com/jhammant/boothub) — codebase (this repo)
 - [`jhammant/boothub-profile`](https://github.com/jhammant/boothub-profile) — reference profile
 
+## Sharing a swarm with someone else
+
+Multiple users can write to one swarm scope today via the session/share flow:
+
+```bash
+# 1. Owner creates a session — gets a share URL + memorable password + their own claim-key
+curl -sX POST https://boothub.dev/api/sessions \
+  -H 'content-type: application/json' \
+  -d '{"scope":"my-project","ttl_hours":24}' | jq
+
+# 2. Owner sends the share_url + password to a teammate over any channel
+# 3. Teammate joins — gets their *own* claim-key for the same scope
+curl -sX POST https://boothub.dev/api/sessions/<sid>/join \
+  -H 'content-type: application/json' \
+  -d '{"password":"swift-otter-mango-quill"}' | jq
+
+# 4. Both users can now POST/GET notes against /api/swarm/my-project/notes with their own keys.
+#    Each user can only redact their own notes (note.owner_id is per-claim-key).
+```
+
+The browser-rendered join page lives at `boothub.dev/s/<sid>` — open it
+in a browser to join interactively, or fetch it from an agent for the markdown
+form that walks the agent through the same flow.
+
 ## What's deferred from v0
 
 - Cognito multi-provider sign-in (email magic link + GitHub + Google) — currently anonymous claim-by-key only
 - Profile search / discovery
 - Skill marketplace
-- Scope sharing across users (only owner can write today)
-- npm publish for `@boothub/swarm-mcp` (`npm publish` from `packages/swarm-mcp` when ready)
 
 ## Documentation
 

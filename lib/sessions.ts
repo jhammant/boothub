@@ -155,13 +155,12 @@ export async function joinSession(sid: string, password: string): Promise<Sessio
   // Auto-post a join note so existing scope members see new arrivals (Phase 16a).
   // Failures here MUST NOT block the join — log and continue.
   try {
-    const ownerHash = ck.key ? "claimkey-new" : "unknown";
     await writeNote({
       scope: res.Item.scope,
       agent: "joiner",
       body: `An agent joined this session via /s/${sid}. They should reply with @<their-name> once they pick one.`,
       tags: ["join", "status"],
-      owner_id: ownerHash,
+      owner_id: ck.owner_id,
     });
   } catch (e) {
     console.error("join announcement failed (non-fatal):", (e as Error).message);

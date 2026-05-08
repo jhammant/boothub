@@ -220,3 +220,64 @@ describe("builtin profiles", () => {
     expect(capturedUrl).not.toMatch(/raw\.githubusercontent\.com/);
   });
 });
+
+const BUILTIN_NAMES = ["starter", "team-duo", "team-quad", "stack-typescript", "stack-python", "stack-rust"] as const;
+
+describe.each(BUILTIN_NAMES)("builtin %s", (name) => {
+  const profileRoot = join(__dirname, "..", "profiles", name);
+  const text = readFileSync(join(profileRoot, "MANIFEST.md"), "utf8");
+
+  it("parses, declares source: builtin, has a default preset", () => {
+    const { manifest } = parseManifest(text);
+    expect(manifest.profile).toBe(name);
+    expect(manifest.source).toBe("builtin");
+    expect(manifest.presets.default).toBeDefined();
+    expect(manifest.bundles.length).toBeGreaterThan(0);
+  });
+
+  it("every `from:` path resolves to a real file on disk", () => {
+    const { manifest } = parseManifest(text);
+    const missing: string[] = [];
+    for (const bundle of manifest.bundles) {
+      if (bundle.kind !== "files") continue;
+      for (const file of bundle.files) {
+        if (!file.from) continue;
+        const onDisk = join(profileRoot, file.from);
+        try {
+          readFileSync(onDisk);
+        } catch {
+          missing.push(`${bundle.id}: ${file.from}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("every preset references real bundle ids", () => {
+    const { manifest } = parseManifest(text);
+    const ids = new Set(manifest.bundles.map((b) => b.id));
+    const broken: string[] = [];
+    for (const [presetName, bundleIds] of Object.entries(manifest.presets)) {
+      for (const id of bundleIds) {
+        if (!ids.has(id)) broken.push(`${presetName} → ${id}`);
+      }
+    }
+    expect(broken).toEqual([]);
+  });
+
+  it("renders end-to-end through the live fetcher (mocked)", async () => {
+    let capturedUrl = "";
+    const fakeFetch = async (url: string) => {
+      capturedUrl = url;
+      return new Response(text, { status: 200, headers: { "content-type": "text/plain" } });
+    };
+    const out = await renderProfile({
+      user: name,
+      preset: "default",
+      fetch: fakeFetch as unknown as typeof globalThis.fetch,
+    });
+    expect(capturedUrl).toBe(`https://boothub.dev/_assets/profiles/${name}/MANIFEST.md`);
+    expect(out).toContain(`profile: ${name}`);
+    expect(out).toContain("source: builtin");
+  });
+});
