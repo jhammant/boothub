@@ -221,7 +221,7 @@ describe("builtin profiles", () => {
   });
 });
 
-const BUILTIN_NAMES = ["starter", "team-duo", "team-quad", "stack-typescript", "stack-python", "stack-rust"] as const;
+const BUILTIN_NAMES = ["starter", "team-duo", "team-quad", "stack-typescript", "stack-python", "stack-rust", "moltup-agent"] as const;
 
 describe.each(BUILTIN_NAMES)("builtin %s", (name) => {
   const profileRoot = join(__dirname, "..", "profiles", name);

@@ -13,6 +13,7 @@ export const BUILTIN_PROFILES = new Set([
   "stack-typescript",
   "stack-python",
   "stack-rust",
+  "moltup-agent",
 ]);
 
 function builtinManifestUrl(name: string): string {
