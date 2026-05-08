@@ -30,7 +30,7 @@ async function main() {
     return;
   }
   if (subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    console.log(`@boothub/swarm-mcp
+    console.log(`@jhammant/swarm-mcp
 
 Usage:
   boothub-swarm-mcp                       run the MCP server (stdio transport)

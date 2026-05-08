@@ -94,7 +94,7 @@ export class BoothubClient {
       if (!this.token) {
         throw new BoothubApiError(
           401,
-          "no boothub token; run `npx @boothub/swarm-mcp login` or set BOOTHUB_TOKEN",
+          "no boothub token; run `npx @jhammant/swarm-mcp login` or set BOOTHUB_TOKEN",
         );
       }
       headers["authorization"] = `ClaimKey ${this.token}`;

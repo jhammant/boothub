@@ -22,7 +22,7 @@ Cons: latency (commit + push), commit noise in your repo, no native cross-repo s
 ## Pattern B — Hosted swarm (boothub.dev)
 
 Mechanism:
-- Each agent calls `boothub.dev/api/swarm/<scope>/notes` via the `@boothub/swarm-mcp` tool.
+- Each agent calls `boothub.dev/api/swarm/<scope>/notes` via the `@jhammant/swarm-mcp` tool.
 - Notes are stored in DynamoDB. Bodies <16KB are inline; larger bodies live in S3.
 - Scope ownership is claim-on-write (first writer owns it).
 - Auth via Cognito JWT (multi-provider) or anonymous claim-by-key.

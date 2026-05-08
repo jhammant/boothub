@@ -11,7 +11,7 @@ export async function login(args: { scope?: string; ttl_seconds?: number } = {})
   writeFileSync(path, result.key, { mode: 0o600 });
   const expires = new Date(result.expires_at * 1000).toISOString();
   console.log(`✓ saved claim-key for scope "${scope}" (expires ${expires}) → ${path}`);
-  console.log("  agents using @boothub/swarm-mcp will now authenticate automatically");
+  console.log("  agents using @jhammant/swarm-mcp will now authenticate automatically");
 }
 
 function promptScope(): string {

@@ -73,7 +73,7 @@
           `<strong>For agents:</strong><br>` +
           `<code>echo "${data.key}" > ~/.config/boothub/token</code><br><br>` +
           `<strong>Or via MCP CLI:</strong><br>` +
-          `<code>BOOTHUB_TOKEN="${data.key}" npx @boothub/swarm-mcp</code>`;
+          `<code>BOOTHUB_TOKEN="${data.key}" npx @jhammant/swarm-mcp</code>`;
       } catch (err) {
         out.className = "out err";
         out.textContent = "network error: " + err.message;

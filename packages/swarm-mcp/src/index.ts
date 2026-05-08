@@ -68,7 +68,7 @@ export async function runMcpServer(): Promise<void> {
   const client = new BoothubClient();
   if (!client.hasToken()) {
     process.stderr.write(
-      "warning: no boothub token; tool calls will fail until you run `npx @boothub/swarm-mcp login`\n",
+      "warning: no boothub token; tool calls will fail until you run `npx @jhammant/swarm-mcp login`\n",
     );
   }
 

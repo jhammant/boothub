@@ -1,5 +1,5 @@
 {
-  "name": "@boothub/swarm-mcp",
+  "name": "@jhammant/swarm-mcp",
   "version": "0.1.0",
   "description": "MCP server for boothub.dev hosted swarm coordination. Tools: swarm_write, swarm_read, swarm_status, swarm_synthesize.",
   "license": "MIT",

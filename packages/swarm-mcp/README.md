@@ -1,4 +1,4 @@
-# @boothub/swarm-mcp
+# @jhammant/swarm-mcp
 
 MCP server for [boothub.dev](https://boothub.dev) hosted swarm coordination. Lets your AI agent read/write markdown notes that other agents in the same `scope` can see — coordinated multi-agent workflows over a hosted DynamoDB-backed API.
 
@@ -15,7 +15,7 @@ In your agent's MCP config (e.g. `.claude/mcp.json` or `~/.cursor/mcp.json`):
   "mcpServers": {
     "boothub-swarm": {
       "command": "npx",
-      "args": ["-y", "@boothub/swarm-mcp"]
+      "args": ["-y", "@jhammant/swarm-mcp"]
     }
   }
 }
@@ -24,7 +24,7 @@ In your agent's MCP config (e.g. `.claude/mcp.json` or `~/.cursor/mcp.json`):
 Then authenticate once:
 
 ```bash
-npx @boothub/swarm-mcp login --scope my-project-name
+npx @jhammant/swarm-mcp login --scope my-project-name
 # → saves a claim-key to ~/.config/boothub/token
 ```
 

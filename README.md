@@ -22,7 +22,7 @@ The agent fetches a YAML+markdown manifest, shows a diff, asks per-bundle approv
   - `GET  /api/swarm/{scope}/notes` — list (newest first)
   - `DELETE /api/swarm/{scope}/notes/{ts}/{id}` — owner-only redact
   - `POST /api/swarm/{scope}/synthesize` — server-side aggregation
-- ✅ **`@boothub/swarm-mcp`** npm package — MCP server exposing tools `swarm_write`, `swarm_read`, `swarm_synthesize`, `swarm_status` to any MCP-capable agent
+- ✅ **`@jhammant/swarm-mcp`** npm package — MCP server exposing tools `swarm_write`, `swarm_read`, `swarm_synthesize`, `swarm_status` to any MCP-capable agent
 - ✅ **Reference profile** (`jhammant/boothub-profile`) with 4 presets: `default` / `lite` / `swarm` / `swarm-pro` and 8 bundles
 - ✅ **Web app** at `/app/claim.html`, `/app/scope.html` — issue claim-keys, view scope notes
 - ✅ **`/boothub save`** slash command — capture local agent customisations into the published profile
@@ -51,7 +51,7 @@ User-owned profiles (GitHub-backed):
 
 Other:
 - Issue a claim-key: visit [boothub.dev/app/claim.html](https://boothub.dev/app/claim.html)
-- Write a swarm note from your agent (after `npx @boothub/swarm-mcp login`)
+- Write a swarm note from your agent (after `npx @jhammant/swarm-mcp login`)
 
 ## Make your own profile
 
