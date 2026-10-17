@@ -28,7 +28,7 @@ This command runs idempotently — re-running with no changes is a no-op.
      ```json
      { "repo": "git@github.com:USER/boothub-profile.git", "local": "/Users/USER/dev/boothub-profile" }
      ```
-   - If absent, prompt the user once: GitHub username + (optional) local clone path. Default local path: `~/dev/boothub-profile`. Save the answer to `~/.config/boothub/profile.json`.
+   - If absent, prompt the user once: GitHub username + (optional) local clone path. Default local path: `~/dev/oss/boothub-profile`. Save the answer to `~/.config/boothub/profile.json`.
    - If the local path doesn't exist, `git clone` from the configured `repo` URL.
 
 2. **Scan local agent config.**

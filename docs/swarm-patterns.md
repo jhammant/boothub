@@ -34,7 +34,7 @@ Cons: depends on a service (boothub.dev), needs an account or claim-key.
 
 ## Pattern C — claw-bridge broker
 
-Mechanism: distributed task broker the user runs themselves at `~/dev/claw-bridge/`. Tailscale-private HTTP API, SQLite queue, MCP tools (`bridge_send`, `bridge_read`, `bridge_status`, `bridge_tasks`, `bridge_context`).
+Mechanism: distributed task broker the user runs themselves at `~/dev/utilities/claw-bridge/`. Tailscale-private HTTP API, SQLite queue, MCP tools (`bridge_send`, `bridge_read`, `bridge_status`, `bridge_tasks`, `bridge_context`).
 
 boothub bundle: `claw-bridge`.
 
