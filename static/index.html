@@ -32,6 +32,16 @@
     .hero { background: linear-gradient(180deg, var(--panel), transparent); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); margin: 1rem 0 2rem; }
     .hero pre { background: var(--bg); margin: 0.5rem 0 0; }
   </style>
+  <script>
+    /* Page-view count for the hosted site only (cookieless). A self-hosted copy loads nothing.
+       Public pages only: never add this to /app/*, which handles claim keys and tokens. */
+    (function () {
+      if (!/(^|\.)boothub\.dev$/.test(location.hostname)) return;
+      var s = document.createElement("script");
+      s.src = "https://hammantlabs.com/a.js";
+      document.head.appendChild(s);
+    })();
+  </script>
 </head>
 <body>
   <h1>🥾 boothub</h1>

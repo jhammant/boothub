@@ -18,6 +18,16 @@
     .warn { background: #3a1a14; border: 1px solid #7a2c1a; padding: 0.85rem 1rem; border-radius: 8px; margin: 1rem 0; }
     nav { font-size: 0.9em; color: var(--fg-dim); margin-bottom: 2rem; }
   </style>
+  <script>
+    /* Page-view count for the hosted site only (cookieless). A self-hosted copy loads nothing.
+       Public pages only: never add this to /app/*, which handles claim keys and tokens. */
+    (function () {
+      if (!/(^|\.)boothub\.dev$/.test(location.hostname)) return;
+      var s = document.createElement("script");
+      s.src = "https://hammantlabs.com/a.js";
+      document.head.appendChild(s);
+    })();
+  </script>
 </head>
 <body>
   <nav><a href="/">← boothub</a></nav>
